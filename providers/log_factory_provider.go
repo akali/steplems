@@ -1,10 +1,11 @@
 package providers
 
 import (
+	"os"
+
 	"github.com/google/wire"
 	"github.com/olehan/kek"
 	"github.com/olehan/kek/formatters/sugared"
-	"os"
 )
 
 func LoggerFactoryProvider() *kek.Factory {

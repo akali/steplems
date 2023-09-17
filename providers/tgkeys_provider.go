@@ -2,9 +2,11 @@ package providers
 
 import (
 	"fmt"
-	"github.com/google/wire"
 	"os"
+
 	"steplems-bot/types"
+
+	"github.com/google/wire"
 )
 
 func ProvideBotToken() (types.TelegramBotToken, error) {

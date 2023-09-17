@@ -2,48 +2,38 @@ package services
 
 import (
 	"fmt"
-	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"io"
+	"os"
+	"path"
+	"regexp"
+	"strings"
+
+	"steplems-bot/types"
+
+	"github.com/avast/retry-go/v4"
 	"github.com/google/wire"
 	"github.com/hashicorp/go-multierror"
 	"github.com/kkdai/youtube/v2"
 	"github.com/olehan/kek"
-	"io"
-	"net/url"
-	"os"
-	"regexp"
-	"strings"
-	"time"
+
+	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type YoutubeService struct {
-	client     youtube.Client
-	log        *kek.Logger
-	pattern    *regexp.Regexp
-	updateChan YoutubeUpdatesChannel
+	client  youtube.Client
+	log     *kek.Logger
+	pattern *regexp.Regexp
 }
 
 func NewYoutubeService(client youtube.Client, logFactory *kek.Factory) *YoutubeService {
 	return &YoutubeService{
-		client:     client,
-		log:        logFactory.NewLogger("YoutubeService"),
-		pattern:    regexp.MustCompile(ytLinkRegex),
-		updateChan: make(YoutubeUpdatesChannel),
+		client:  client,
+		log:     logFactory.NewLogger("YoutubeService"),
+		pattern: regexp.MustCompile(ytLinkRegex),
 	}
 }
 
 var YoutubeServiceProvider = wire.NewSet(NewYoutubeService)
-
-type YoutubeUpdatesChannel chan TelegramBotAction
-
-func (ys *YoutubeService) Updates() YoutubeUpdatesChannel {
-	return ys.updateChan
-}
-
-type TelegramBotAction func(api *tbot.BotAPI)
-
-type YoutubeMessage struct {
-	Title, Link, Path string
-}
 
 type VideoType string
 type QualityType string
@@ -75,7 +65,7 @@ func (ys *YoutubeService) Match(text string) []string {
 	return ys.pattern.FindAllString(text, -1)
 }
 
-func (ys *YoutubeService) YoutubeMessage(update tbot.Update) bool {
+func (ys *YoutubeService) IsYoutubeMessage(update tbot.Update) bool {
 	if update.Message == nil || update.Message.From.IsBot {
 		return false
 	}
@@ -83,25 +73,16 @@ func (ys *YoutubeService) YoutubeMessage(update tbot.Update) bool {
 	return len(links) != 0
 }
 
-func (ys *YoutubeService) retryIfErr(f func() error) {
-	for i := 1; i <= RETRY_TIMES; i++ {
-		if err := f(); err != nil {
-			time.Sleep(time.Second * time.Duration(2<<i))
-		} else {
-			return
-		}
-	}
-}
-
 func (ys *YoutubeService) chooseFormat(formats youtube.FormatList) *youtube.Format {
 	formats = formats.WithAudioChannels()
 
 	for i := range formats {
-		for _, q := range allowedQuality {
-			for _, t := range allowedType {
-				if (formats[i].Quality == string(q) || formats[i].QualityLabel == string(q)) &&
-					strings.Contains(formats[i].MimeType, string(t)) {
-
+		for _, t := range allowedType {
+			if !strings.Contains(formats[i].MimeType, string(t)) {
+				continue
+			}
+			for _, q := range allowedQuality {
+				if formats[i].Quality == string(q) || formats[i].QualityLabel == string(q) {
 					return &formats[i]
 				}
 			}
@@ -109,20 +90,6 @@ func (ys *YoutubeService) chooseFormat(formats youtube.FormatList) *youtube.Form
 	}
 
 	return &formats[0]
-}
-
-func (ys *YoutubeService) downloadPerLinkBackedOff(
-	v *youtube.Video,
-	format *youtube.Format,
-	folder string,
-) (s string, err error) {
-	ys.retryIfErr(func() error {
-		s, err = ys.downloadPerLink(v, format, folder)
-
-		return err
-	})
-
-	return
 }
 
 func (ys *YoutubeService) downloadPerLink(
@@ -138,7 +105,7 @@ func (ys *YoutubeService) downloadPerLink(
 	a := strings.Split(format.MimeType, "/")
 	fileExt := strings.Split(a[1], ";")[0]
 
-	filename := folder + "/" + url.PathEscape(v.ID) + "." + fileExt
+	filename := path.Join(folder, v.ID) + "." + fileExt
 
 	f, err := os.Create(filename)
 	if err != nil {
@@ -158,41 +125,8 @@ func (ys *YoutubeService) downloadPerLink(
 	return filename, nil
 }
 
-func (m *YoutubeMessage) SanitizeTitle() {
-	m.Title = strings.Replace(
-		strings.Replace(
-			strings.Replace(
-				strings.Replace(
-					strings.Replace(
-						strings.Replace(
-							strings.Replace(m.Title, "*", "\\*", -1),
-							"_", "\\_", -1),
-						"~", "\\~", -1),
-					"`", "\\`", -1),
-				"|", "\\|", -1),
-			"[", "\\[", -1),
-		"]", "\\]", -1)
-
-}
-
-func (m *YoutubeMessage) FormCaption() string {
-	m.SanitizeTitle()
-
-	b := strings.Builder{}
-
-	b.WriteRune('*')
-	b.WriteString(m.Title)
-	b.WriteRune('*')
-
-	b.WriteString("\n\n[link | сілтеме]")
-	b.WriteRune('(')
-	b.WriteString(m.Link)
-	b.WriteRune(')')
-	return b.String()
-}
-
-func (ys *YoutubeService) Download(links []string, folder string) ([]YoutubeMessage, error) {
-	msgs := make([]YoutubeMessage, 0)
+func (ys *YoutubeService) Download(links []string, folder string) ([]types.YoutubeMessage, error) {
+	msgs := make([]types.YoutubeMessage, 0)
 
 	for _, l := range links {
 		v, err := ys.client.GetVideo(l)
@@ -203,14 +137,15 @@ func (ys *YoutubeService) Download(links []string, folder string) ([]YoutubeMess
 		}
 
 		chosenFormat := ys.chooseFormat(v.Formats)
-		filename, err := ys.downloadPerLinkBackedOff(v, chosenFormat, folder)
+		filename, err := retry.DoWithData(func() (string, error) {
+			return ys.downloadPerLink(v, chosenFormat, folder)
+		}, retry.Attempts(RETRY_TIMES), retry.DelayType(retry.BackOffDelay))
+
 		if err != nil {
 			return nil, err
 		}
 
-		// there has to be ffmpeg stuff
-
-		msgs = append(msgs, YoutubeMessage{
+		msgs = append(msgs, types.YoutubeMessage{
 			Link:  l,
 			Title: v.Title,
 			Path:  filename})
@@ -219,11 +154,11 @@ func (ys *YoutubeService) Download(links []string, folder string) ([]YoutubeMess
 	return msgs, nil
 }
 
-func (ys *YoutubeService) MessageUpdate(message *tbot.Message) error {
+func (ys *YoutubeService) MessageUpdate(message *tbot.Message) (tbot.VideoConfig, error) {
 	links := ys.Match(message.Text)
 
 	if len(links) == 0 || message.From.IsBot {
-		return nil
+		return tbot.VideoConfig{}, nil
 	}
 
 	ys.log.Info.PrintTKV(
@@ -232,22 +167,13 @@ func (ys *YoutubeService) MessageUpdate(message *tbot.Message) error {
 
 	folder, err := os.MkdirTemp("/tmp", "yt*")
 	if err != nil {
-		return err
+		return tbot.VideoConfig{}, err
 	}
-
-	defer os.RemoveAll(folder)
 
 	yms, err := ys.Download(links, folder)
 	if err != nil {
 		ys.log.Error.Println(err.Error())
-		// Let's try to reply to message with error message
-		v := tbot.NewMessage(message.Chat.ID, fmt.Sprintf("failed to process video: %s", err.Error()))
-		v.ReplyToMessageID = message.MessageID
-
-		if err := ys.SendMessage(v); err != nil {
-			ys.log.Error.Println("failed to reply to message: ", err.Error())
-		}
-		return err
+		return tbot.VideoConfig{}, fmt.Errorf("failed to process video: %s", err.Error())
 	}
 	var filesErrs *multierror.Error
 	for _, ym := range yms {
@@ -256,26 +182,7 @@ func (ys *YoutubeService) MessageUpdate(message *tbot.Message) error {
 		v.ParseMode = tbot.ModeMarkdown
 		v.ReplyToMessageID = message.MessageID
 
-		if err := ys.SendMessage(v); err != nil {
-			ys.log.Error.Println(err.Error())
-			// Let's try to reply to message with error message
-			v := tbot.NewMessage(message.Chat.ID, fmt.Sprintf("failed to process video: %s", err.Error()))
-			v.ReplyToMessageID = message.MessageID
-
-			if err := ys.SendMessage(v); err != nil {
-				ys.log.Error.Println("failed to reply to message: ", err.Error())
-				filesErrs = multierror.Append(filesErrs, err)
-			}
-		}
+		return v, nil
 	}
-	return filesErrs.ErrorOrNil()
-}
-
-func (ys *YoutubeService) SendMessage(cfg tbot.Chattable) error {
-	errChan := make(chan error)
-	ys.updateChan <- TelegramBotAction(func(api *tbot.BotAPI) {
-		_, err := api.Send(cfg)
-		errChan <- err
-	})
-	return <-errChan
+	return tbot.VideoConfig{}, filesErrs.ErrorOrNil()
 }
