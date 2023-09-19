@@ -9,6 +9,7 @@ package main
 import (
 	"steplems-bot/providers"
 	"steplems-bot/services"
+	"steplems-bot/services/telegram"
 )
 
 // Injectors from wire.go:
@@ -29,7 +30,7 @@ func NewWireApplication() (WireApplication, error) {
 	client := providers.ProvideYoutubeClient()
 	factory := providers.LoggerFactoryProvider()
 	youtubeService := services.NewYoutubeService(client, factory)
-	telegramService := services.NewTelegramService(botAPI, youtubeService, factory)
+	telegramService := telegram.NewTelegramService(botAPI, youtubeService, factory)
 	wireApplication := provideWireApplication(telegramService)
 	return wireApplication, nil
 }
@@ -37,10 +38,10 @@ func NewWireApplication() (WireApplication, error) {
 // wire.go:
 
 type WireApplication struct {
-	telegramService *services.TelegramService
+	telegramService *telegram.TelegramService
 }
 
-func provideWireApplication(telegramService *services.TelegramService) WireApplication {
+func provideWireApplication(telegramService *telegram.TelegramService) WireApplication {
 	return WireApplication{telegramService: telegramService}
 }
 

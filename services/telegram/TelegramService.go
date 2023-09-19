@@ -2,6 +2,8 @@ package services
 
 import (
 	"fmt"
+	"steplems-bot/types"
+	"strings"
 
 	"github.com/google/wire"
 	"github.com/olehan/kek"
@@ -13,6 +15,7 @@ type TelegramService struct {
 	api       *tbot.BotAPI
 	ytService *YoutubeService
 	logger    *kek.Logger
+	commands  []types.TelegramCommand
 }
 
 func NewTelegramService(api *tbot.BotAPI, ytService *YoutubeService, kekFactory *kek.Factory) *TelegramService {
@@ -27,6 +30,15 @@ func (t *TelegramService) StartBot() {
 	for update := range updates {
 		go t.OnUpdate(update)
 	}
+}
+
+func (t *TelegramService) RegisterCommand(commands ...types.TelegramCommand) error {
+	for _, cmd := range commands {
+		cmd.Command = strings.TrimPrefix(strings.Split(cmd.Command, " ")[0], "/")
+		t.commands = append(t.commands, cmd)
+	}
+
+	return t.setCommands()
 }
 
 func (t *TelegramService) OnUpdate(update tbot.Update) {
@@ -46,6 +58,16 @@ func (t *TelegramService) OnUpdate(update tbot.Update) {
 			}
 		}
 	}
+}
+
+func (t *TelegramService) setCommands() error {
+	cmds := []tbot.BotCommand{}
+	for _, command := range t.commands {
+		cmds = append(cmds, command.ToAPITelegramCommand())
+	}
+	cfg := tbot.NewSetMyCommands(cmds...)
+	_, err := t.api.Send(cfg)
+	return err
 }
 
 var TelegramServiceProvider = wire.NewSet(NewTelegramService)
