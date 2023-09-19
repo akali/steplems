@@ -3,16 +3,20 @@ package telegram
 import (
 	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/google/wire"
-	"steplems-bot/services/spotify"
+	"steplems-bot/services/telegram/commands"
+	"steplems-bot/types"
 )
 
 type CommandMap struct {
 	commands map[string]TelegramCommand
 }
 
-func NewCommandMap(authorizeSpotifyCommand *AuthorizeSpotifyCommand) *CommandMap {
+func NewCommandMap(
+	authorizeSpotifyCommand *commands.AuthorizeSpotifyCommand,
+	helpCommand *commands.HelpCommand,
+) *CommandMap {
 	commands := []TelegramCommand{
-		Help{},
+		helpCommand,
 		authorizeSpotifyCommand,
 	}
 	cm := CommandMap{commands: make(map[string]TelegramCommand)}
@@ -22,52 +26,12 @@ func NewCommandMap(authorizeSpotifyCommand *AuthorizeSpotifyCommand) *CommandMap
 	return &cm
 }
 
-var CommandMapProvider = wire.NewSet(NewCommandMap, NewAuthorizeSpotifyCommand)
-
-type Help struct{}
-
-func (h Help) Run(service *TelegramService, update tbot.Update) error {
-	msg := tbot.NewMessage(update.Message.Chat.ID, "help requested")
-	_, err := service.api.Send(msg)
-	return err
-}
-
-func (h Help) Command() string {
-	return "help"
-}
-
-func (h Help) Description() string {
-	return "Get help."
-}
-
-type AuthorizeSpotifyCommand struct {
-	service *spotify.SpotifyService
-}
-
-func (h *AuthorizeSpotifyCommand) Run(service *TelegramService, update tbot.Update) error {
-	user, err := h.service.AuthorizeUser(update.Message.From.UserName)
-	if err != nil {
-		return err
-	}
-	msg := tbot.NewMessage(update.Message.Chat.ID, user.Username)
-	_, err = service.api.Send(msg)
-	return err
-}
-
-func (c *AuthorizeSpotifyCommand) Command() string {
-	return "authorize"
-}
-
-func (c *AuthorizeSpotifyCommand) Description() string {
-	return "Authorize your spotify account."
-}
-
-func NewAuthorizeSpotifyCommand(service *spotify.SpotifyService) *AuthorizeSpotifyCommand {
-	return &AuthorizeSpotifyCommand{service}
-}
+var CommandMapProvider = wire.NewSet(
+	NewCommandMap,
+	commands.CommandsProvider)
 
 type TelegramCommand interface {
-	Run(*TelegramService, tbot.Update) error
+	Run(types.Sender, tbot.Update) error
 	Command() string
 	Description() string
 }

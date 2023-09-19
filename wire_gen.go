@@ -11,6 +11,7 @@ import (
 	"steplems-bot/providers"
 	"steplems-bot/services/spotify"
 	"steplems-bot/services/telegram"
+	"steplems-bot/services/telegram/commands"
 	"steplems-bot/services/youtube"
 )
 
@@ -42,8 +43,9 @@ func NewWireApplication() (WireApplication, error) {
 	}
 	spotifyUserRepository := spotifyUser.NewSpotifyUserRepository(db)
 	spotifyService := spotify.NewSpotifyService(spotifyUserRepository)
-	authorizeSpotifyCommand := telegram.NewAuthorizeSpotifyCommand(spotifyService)
-	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand)
+	authorizeSpotifyCommand := commands.NewAuthorizeSpotifyCommand(spotifyService)
+	helpCommand := commands.NewHelpCommand()
+	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand)
 	telegramService := telegram.NewTelegramService(botAPI, youtubeService, factory, commandMap)
 	wireApplication := provideWireApplication(telegramService, spotifyService)
 	return wireApplication, nil

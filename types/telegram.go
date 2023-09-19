@@ -7,3 +7,6 @@ import (
 type TelegramBotToken string
 type TelegramWebhookAddress string
 type TelegramBotAction func(api *tbot.BotAPI)
+type Sender interface {
+	Send(tbot.Chattable) (tbot.Message, error)
+}

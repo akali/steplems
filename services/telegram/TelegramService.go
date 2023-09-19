@@ -80,3 +80,7 @@ func (t *TelegramService) setCommands() error {
 	_, err := t.api.Request(cfg)
 	return err
 }
+
+func (t *TelegramService) Send(c tbot.Chattable) (tbot.Message, error) {
+	return t.api.Send(c)
+}
