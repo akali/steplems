@@ -7,9 +7,11 @@
 package main
 
 import (
+	"steplems-bot/persistence/spotifyUser"
 	"steplems-bot/providers"
-	"steplems-bot/services"
+	"steplems-bot/services/spotify"
 	"steplems-bot/services/telegram"
+	"steplems-bot/services/youtube"
 )
 
 // Injectors from wire.go:
@@ -29,9 +31,21 @@ func NewWireApplication() (WireApplication, error) {
 	}
 	client := providers.ProvideYoutubeClient()
 	factory := providers.LoggerFactoryProvider()
-	youtubeService := services.NewYoutubeService(client, factory)
-	telegramService := telegram.NewTelegramService(botAPI, youtubeService, factory)
-	wireApplication := provideWireApplication(telegramService)
+	youtubeService := youtube.NewYoutubeService(client, factory)
+	databaseConnectionURL, err := providers.ProvideDatabaseConnectionURL()
+	if err != nil {
+		return WireApplication{}, err
+	}
+	db, err := providers.ProvideDatabase(databaseConnectionURL)
+	if err != nil {
+		return WireApplication{}, err
+	}
+	spotifyUserRepository := spotifyUser.NewSpotifyUserRepository(db)
+	spotifyService := spotify.NewSpotifyService(spotifyUserRepository)
+	authorizeSpotifyCommand := telegram.NewAuthorizeSpotifyCommand(spotifyService)
+	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand)
+	telegramService := telegram.NewTelegramService(botAPI, youtubeService, factory, commandMap)
+	wireApplication := provideWireApplication(telegramService, spotifyService)
 	return wireApplication, nil
 }
 
@@ -39,10 +53,11 @@ func NewWireApplication() (WireApplication, error) {
 
 type WireApplication struct {
 	telegramService *telegram.TelegramService
+	ss              *spotify.SpotifyService
 }
 
-func provideWireApplication(telegramService *telegram.TelegramService) WireApplication {
-	return WireApplication{telegramService: telegramService}
+func provideWireApplication(telegramService *telegram.TelegramService, service *spotify.SpotifyService) WireApplication {
+	return WireApplication{telegramService: telegramService, ss: service}
 }
 
 func (w WireApplication) Start() {

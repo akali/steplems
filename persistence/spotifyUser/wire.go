@@ -1,4 +1,4 @@
-package spotify_user
+package spotifyUser
 
 import "github.com/google/wire"
 

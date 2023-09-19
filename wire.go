@@ -5,20 +5,27 @@ package main
 
 import (
 	"github.com/google/wire"
+	"steplems-bot/persistence"
 	"steplems-bot/services"
+	"steplems-bot/services/spotify"
+	"steplems-bot/services/telegram"
 )
 import "steplems-bot/providers"
 
 type WireApplication struct {
-	telegramService *services.TelegramService
+	telegramService *telegram.TelegramService
+	ss              *spotify.SpotifyService
 }
 
-func provideWireApplication(telegramService *services.TelegramService) WireApplication {
-	return WireApplication{telegramService: telegramService}
+func provideWireApplication(telegramService *telegram.TelegramService, service *spotify.SpotifyService) WireApplication {
+	return WireApplication{telegramService: telegramService, ss: service}
 }
 
 func NewWireApplication() (WireApplication, error) {
-	wire.Build(provideWireApplication, providers.ProvidersSet, services.ServicesSet)
+	wire.Build(provideWireApplication,
+		providers.ProvidersSet,
+		services.ServicesSet,
+		persistence.PersistenceSet)
 	return WireApplication{}, nil
 }
 

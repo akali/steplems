@@ -1,6 +1,8 @@
 package types
 
-import tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+import (
+	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+)
 
 type TelegramBotToken string
 type TelegramWebhookAddress string

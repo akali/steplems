@@ -1,4 +1,4 @@
-package spotify_user
+package spotifyUser
 
 import (
 	"gorm.io/gorm"
@@ -9,8 +9,8 @@ type SpotifyUserRepository struct {
 	DB *gorm.DB
 }
 
-func NewSpotifyUserRepository(DB *gorm.DB) SpotifyUserRepository {
-	return SpotifyUserRepository{DB}
+func NewSpotifyUserRepository(DB *gorm.DB) *SpotifyUserRepository {
+	return &SpotifyUserRepository{DB}
 }
 
 func (p *SpotifyUserRepository) FindAll() []SpotifyUser {

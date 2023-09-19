@@ -1,47 +1,50 @@
-package services
+package telegram
 
 import (
 	"fmt"
-	"steplems-bot/types"
 	"strings"
 
-	"github.com/google/wire"
 	"github.com/olehan/kek"
 
 	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"steplems-bot/services/youtube"
 )
 
 type TelegramService struct {
 	api       *tbot.BotAPI
-	ytService *YoutubeService
+	ytService *youtube.YoutubeService
 	logger    *kek.Logger
-	commands  []types.TelegramCommand
+	commands  map[string]TelegramCommand
 }
 
-func NewTelegramService(api *tbot.BotAPI, ytService *YoutubeService, kekFactory *kek.Factory) *TelegramService {
+func NewTelegramService(api *tbot.BotAPI,
+	ytService *youtube.YoutubeService,
+	kekFactory *kek.Factory,
+	cm *CommandMap) *TelegramService {
 	return &TelegramService{api: api,
 		ytService: ytService,
-		logger:    kekFactory.NewLogger("TelegramService")}
+		logger:    kekFactory.NewLogger("TelegramService"),
+		commands:  cm.commands,
+	}
 }
 
 func (t *TelegramService) StartBot() {
 	uc := tbot.NewUpdate(0)
 	updates := t.api.GetUpdatesChan(uc)
+	if err := t.setCommands(); err != nil {
+		t.logger.Error.Println("Failed to set commands: ", err.Error())
+	}
 	for update := range updates {
-		go t.OnUpdate(update)
+		go func() {
+			err := t.OnUpdate(update)
+			if err != nil {
+				t.logger.Error.Println("Received error OnUpdate: ", err)
+			}
+		}()
 	}
 }
 
-func (t *TelegramService) RegisterCommand(commands ...types.TelegramCommand) error {
-	for _, cmd := range commands {
-		cmd.Command = strings.TrimPrefix(strings.Split(cmd.Command, " ")[0], "/")
-		t.commands = append(t.commands, cmd)
-	}
-
-	return t.setCommands()
-}
-
-func (t *TelegramService) OnUpdate(update tbot.Update) {
+func (t *TelegramService) OnUpdate(update tbot.Update) error {
 	t.logger.Debug.Println("received an update: ", update)
 	if t.ytService.IsYoutubeMessage(update) {
 		c, err := t.ytService.MessageUpdate(update.Message)
@@ -58,16 +61,22 @@ func (t *TelegramService) OnUpdate(update tbot.Update) {
 			}
 		}
 	}
+	if update.Message.IsCommand() {
+		if err := t.commands[update.Message.Command()].Run(t, update); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (t *TelegramService) setCommands() error {
-	cmds := []tbot.BotCommand{}
+	var cmds []tbot.BotCommand
 	for _, command := range t.commands {
-		cmds = append(cmds, command.ToAPITelegramCommand())
+		cmd := ToAPITelegramCommand(command)
+		cmd.Command = strings.TrimPrefix(strings.Split(cmd.Command, " ")[0], "/")
+		cmds = append(cmds, cmd)
 	}
 	cfg := tbot.NewSetMyCommands(cmds...)
-	_, err := t.api.Send(cfg)
+	_, err := t.api.Request(cfg)
 	return err
 }
-
-var TelegramServiceProvider = wire.NewSet(NewTelegramService)

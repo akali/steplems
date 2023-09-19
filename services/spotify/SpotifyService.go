@@ -1,7 +1,6 @@
-package services
+package spotify
 
 import (
-	"github.com/google/wire"
 	"steplems-bot/persistence/spotifyUser"
 )
 
@@ -24,5 +23,3 @@ func (s *SpotifyService) AuthorizeUser(username string) (spotifyUser.SpotifyUser
 func (s *SpotifyService) FindAll() []spotifyUser.SpotifyUser {
 	return s.userRepo.FindAll()
 }
-
-var SpotifyServiceProviderSet = wire.NewSet(NewSpotifyService)
