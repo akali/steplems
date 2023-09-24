@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"steplems-bot/persistence/spotify"
 	"steplems-bot/persistence/telegram"
 	"steplems-bot/providers"
@@ -54,14 +55,22 @@ func NewWireApplication() (WireApplication, error) {
 	if err != nil {
 		return WireApplication{}, err
 	}
-	authenticator := providers.ProvideSpotifyAuth(spotifyClientID, spotifyClientSecret)
+	hostname, err := providers.ProvideHostname()
+	if err != nil {
+		return WireApplication{}, err
+	}
+	port, err := providers.ProvidePort()
+	if err != nil {
+		return WireApplication{}, err
+	}
+	authenticator := providers.ProvideSpotifyAuth(spotifyClientID, spotifyClientSecret, hostname, port)
 	spotifyService := spotify2.NewSpotifyService(userRepository, telegramUserRepository, authenticator, factory)
 	authorizeSpotifyCommand := commands.NewAuthorizeSpotifyCommand(spotifyService)
 	helpCommand := commands.NewHelpCommand()
 	nowPlayingCommand := commands.NewNowPlayingCommand(spotifyService)
 	commandMap := telegram2.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand)
 	telegramService := telegram2.NewTelegramService(botAPI, youtubeService, factory, commandMap)
-	wireApplication := provideWireApplication(telegramService, userRepository, telegramUserRepository)
+	wireApplication := provideWireApplication(telegramService, hostname, userRepository, telegramUserRepository)
 	return wireApplication, nil
 }
 
@@ -71,10 +80,11 @@ type WireApplication struct {
 	telegramService *telegram2.TelegramService
 	sUserRepo       *spotify.UserRepository
 	tUserRepo       *telegram.UserRepository
+	hostname        types.Hostname
 }
 
-func provideWireApplication(telegramService *telegram2.TelegramService, sUserRepo *spotify.UserRepository, tUserRepo *telegram.UserRepository) WireApplication {
-	return WireApplication{telegramService: telegramService, sUserRepo: sUserRepo, tUserRepo: tUserRepo}
+func provideWireApplication(telegramService *telegram2.TelegramService, hostname types.Hostname, sUserRepo *spotify.UserRepository, tUserRepo *telegram.UserRepository) WireApplication {
+	return WireApplication{telegramService: telegramService, sUserRepo: sUserRepo, tUserRepo: tUserRepo, hostname: hostname}
 }
 
 func (w WireApplication) Start() error {
@@ -90,6 +100,7 @@ func (w WireApplication) Start() error {
 			return err
 		}
 	}
+	log.Printf("Starting application with hostname=%s\n", w.hostname)
 
 	return w.telegramService.StartBot(ctx)
 }

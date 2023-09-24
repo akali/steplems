@@ -6,7 +6,7 @@ package main
 import (
 	"context"
 	"github.com/google/wire"
-	"google.golang.org/appengine/log"
+	"log"
 	"steplems-bot/persistence"
 	"steplems-bot/persistence/spotify"
 	telegram2 "steplems-bot/persistence/telegram"
@@ -49,7 +49,7 @@ func (w WireApplication) Start() error {
 		}
 	}
 
-	log.Infof(ctx, "Starting application with hostname=%s", w.hostname)
+	log.Printf("Starting application with hostname=%s\n", w.hostname)
 
 	return w.telegramService.StartBot(ctx)
 }
