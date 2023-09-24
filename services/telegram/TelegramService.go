@@ -1,7 +1,9 @@
 package telegram
 
 import (
+	"context"
 	"fmt"
+	"github.com/hashicorp/go-multierror"
 	"strings"
 
 	"github.com/olehan/kek"
@@ -28,29 +30,35 @@ func NewTelegramService(api *tbot.BotAPI,
 	}
 }
 
-func (t *TelegramService) StartBot() {
+func (t *TelegramService) StartBot(ctx context.Context) error {
 	uc := tbot.NewUpdate(0)
 	updates := t.api.GetUpdatesChan(uc)
 	if err := t.setCommands(); err != nil {
 		t.logger.Error.Println("Failed to set commands: ", err.Error())
+		return err
 	}
 	for update := range updates {
 		go func() {
-			err := t.OnUpdate(update)
+			ctx, _ := context.WithCancel(ctx)
+			err := t.OnUpdate(ctx, update)
 			if err != nil {
 				t.logger.Error.Println("Received error OnUpdate: ", err)
 			}
 		}()
 	}
+	return nil
 }
 
-func (t *TelegramService) OnUpdate(update tbot.Update) error {
+func (t *TelegramService) OnUpdate(ctx context.Context, update tbot.Update) error {
 	t.logger.Debug.Println("received an update: ", update)
+	if update.Message == nil {
+		return nil
+	}
 	if t.ytService.IsYoutubeMessage(update) {
 		c, err := t.ytService.MessageUpdate(update.Message)
 		if err != nil {
 			t.logger.Error.Println("Failed MessageUpdate: ", err)
-			msg := tbot.NewMessage(update.Message.Chat.ID, fmt.Sprintf("youtube service error: %q", err.Error()))
+			msg := tbot.NewMessage(update.FromChat().ID, fmt.Sprintf("youtube service error: %q", err.Error()))
 			msg.ReplyToMessageID = update.Message.MessageID
 			if _, err := t.api.Send(msg); err != nil {
 				t.logger.Error.Println("failed to send: ", err.Error())
@@ -62,7 +70,13 @@ func (t *TelegramService) OnUpdate(update tbot.Update) error {
 		}
 	}
 	if update.Message.IsCommand() {
-		if err := t.commands[update.Message.Command()].Run(t, update); err != nil {
+		if err := t.commands[update.Message.Command()].Run(ctx, t, update); err != nil {
+			msg := tbot.NewMessage(update.FromChat().ID, fmt.Sprintf("command error: %q", err.Error()))
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, newErr := t.Send(msg)
+			if newErr != nil {
+				return multierror.Append(err, newErr)
+			}
 			return err
 		}
 	}

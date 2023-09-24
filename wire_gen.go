@@ -7,12 +7,15 @@
 package main
 
 import (
-	"steplems-bot/persistence/spotifyUser"
+	"context"
+	"steplems-bot/persistence/spotify"
+	"steplems-bot/persistence/telegram"
 	"steplems-bot/providers"
-	"steplems-bot/services/spotify"
-	"steplems-bot/services/telegram"
+	spotify2 "steplems-bot/services/spotify"
+	telegram2 "steplems-bot/services/telegram"
 	"steplems-bot/services/telegram/commands"
 	"steplems-bot/services/youtube"
+	"steplems-bot/types"
 )
 
 // Injectors from wire.go:
@@ -41,27 +44,52 @@ func NewWireApplication() (WireApplication, error) {
 	if err != nil {
 		return WireApplication{}, err
 	}
-	spotifyUserRepository := spotifyUser.NewSpotifyUserRepository(db)
-	spotifyService := spotify.NewSpotifyService(spotifyUserRepository)
+	userRepository := spotify.NewSpotifyUserRepository(db)
+	telegramUserRepository := telegram.NewUserRepository(db)
+	spotifyClientID, err := providers.ProvideSpotifyClientID()
+	if err != nil {
+		return WireApplication{}, err
+	}
+	spotifyClientSecret, err := providers.ProvideSpotifyClientSecret()
+	if err != nil {
+		return WireApplication{}, err
+	}
+	authenticator := providers.ProvideSpotifyAuth(spotifyClientID, spotifyClientSecret)
+	spotifyService := spotify2.NewSpotifyService(userRepository, telegramUserRepository, authenticator, factory)
 	authorizeSpotifyCommand := commands.NewAuthorizeSpotifyCommand(spotifyService)
 	helpCommand := commands.NewHelpCommand()
-	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand)
-	telegramService := telegram.NewTelegramService(botAPI, youtubeService, factory, commandMap)
-	wireApplication := provideWireApplication(telegramService, spotifyService)
+	nowPlayingCommand := commands.NewNowPlayingCommand(spotifyService)
+	commandMap := telegram2.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand)
+	telegramService := telegram2.NewTelegramService(botAPI, youtubeService, factory, commandMap)
+	wireApplication := provideWireApplication(telegramService, userRepository, telegramUserRepository)
 	return wireApplication, nil
 }
 
 // wire.go:
 
 type WireApplication struct {
-	telegramService *telegram.TelegramService
-	ss              *spotify.SpotifyService
+	telegramService *telegram2.TelegramService
+	sUserRepo       *spotify.UserRepository
+	tUserRepo       *telegram.UserRepository
 }
 
-func provideWireApplication(telegramService *telegram.TelegramService, service *spotify.SpotifyService) WireApplication {
-	return WireApplication{telegramService: telegramService, ss: service}
+func provideWireApplication(telegramService *telegram2.TelegramService, sUserRepo *spotify.UserRepository, tUserRepo *telegram.UserRepository) WireApplication {
+	return WireApplication{telegramService: telegramService, sUserRepo: sUserRepo, tUserRepo: tUserRepo}
 }
 
-func (w WireApplication) Start() {
-	w.telegramService.StartBot()
+func (w WireApplication) Start() error {
+	ctx := context.Background()
+
+	migratables := []types.MigrationRunner{
+		w.sUserRepo,
+		w.tUserRepo,
+	}
+
+	for _, m := range migratables {
+		if err := m.RunMigrations(); err != nil {
+			return err
+		}
+	}
+
+	return w.telegramService.StartBot(ctx)
 }

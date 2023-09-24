@@ -9,4 +9,12 @@ func ProvideWebhookAddress() (types.WebhookAddress, error) {
 	return ProvideEnvironmentVariable[types.WebhookAddress]("WEBHOOK")()
 }
 
-var NetworkProviders = wire.NewSet(ProvideWebhookAddress)
+func ProvideHostname() (types.Hostname, error) {
+	return ProvideEnvironmentVariable[types.Hostname]("HOSTNAME")()
+}
+
+func ProvidePort() (types.Port, error) {
+	return ProvideEnvironmentVariable[types.Port]("PORT")()
+}
+
+var NetworkProviders = wire.NewSet(ProvideWebhookAddress, ProvideHostname, ProvidePort)

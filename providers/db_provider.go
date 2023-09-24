@@ -2,9 +2,11 @@ package providers
 
 import (
 	"github.com/google/wire"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	"gorm.io/driver/postgres"
+
 	"steplems-bot/types"
+
+	"gorm.io/gorm"
 )
 
 func ProvideDatabaseConnectionURL() (types.DatabaseConnectionURL, error) {
@@ -12,7 +14,7 @@ func ProvideDatabaseConnectionURL() (types.DatabaseConnectionURL, error) {
 }
 
 func ProvideDatabase(url types.DatabaseConnectionURL) (*gorm.DB, error) {
-	return gorm.Open(sqlite.Open(string(url)), &gorm.Config{})
+	return gorm.Open(postgres.Open(string(url)), &gorm.Config{})
 }
 
 var DBProviders = wire.NewSet(ProvideDatabase, ProvideDatabaseConnectionURL)

@@ -7,3 +7,5 @@ func FindAll[T any](db *gorm.DB) []T {
 	db.Find(&result)
 	return result
 }
+
+type ErrNotFound error

@@ -4,21 +4,27 @@
 package main
 
 import (
+	"context"
 	"github.com/google/wire"
+	"google.golang.org/appengine/log"
 	"steplems-bot/persistence"
+	"steplems-bot/persistence/spotify"
+	telegram2 "steplems-bot/persistence/telegram"
 	"steplems-bot/services"
-	"steplems-bot/services/spotify"
 	"steplems-bot/services/telegram"
+	"steplems-bot/types"
 )
 import "steplems-bot/providers"
 
 type WireApplication struct {
 	telegramService *telegram.TelegramService
-	ss              *spotify.SpotifyService
+	sUserRepo       *spotify.UserRepository
+	tUserRepo       *telegram2.UserRepository
+	hostname        types.Hostname
 }
 
-func provideWireApplication(telegramService *telegram.TelegramService, service *spotify.SpotifyService) WireApplication {
-	return WireApplication{telegramService: telegramService, ss: service}
+func provideWireApplication(telegramService *telegram.TelegramService, hostname types.Hostname, sUserRepo *spotify.UserRepository, tUserRepo *telegram2.UserRepository) WireApplication {
+	return WireApplication{telegramService: telegramService, sUserRepo: sUserRepo, tUserRepo: tUserRepo, hostname: hostname}
 }
 
 func NewWireApplication() (WireApplication, error) {
@@ -29,6 +35,21 @@ func NewWireApplication() (WireApplication, error) {
 	return WireApplication{}, nil
 }
 
-func (w WireApplication) Start() {
-	w.telegramService.StartBot()
+func (w WireApplication) Start() error {
+	ctx := context.Background()
+
+	migratables := []types.MigrationRunner{
+		w.sUserRepo,
+		w.tUserRepo,
+	}
+
+	for _, m := range migratables {
+		if err := m.RunMigrations(); err != nil {
+			return err
+		}
+	}
+
+	log.Infof(ctx, "Starting application with hostname=%s", w.hostname)
+
+	return w.telegramService.StartBot(ctx)
 }

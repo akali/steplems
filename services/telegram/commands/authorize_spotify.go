@@ -1,22 +1,29 @@
 package commands
 
 import (
+	"context"
 	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"steplems-bot/services/spotify"
 	"steplems-bot/types"
 )
 
 type AuthorizeSpotifyCommand struct {
-	service *spotify.SpotifyService
+	spotifyService *spotify.SpotifyService
 }
 
-func (h *AuthorizeSpotifyCommand) Run(service types.Sender, update tbot.Update) error {
-	user, err := h.service.AuthorizeUser(update.Message.From.UserName)
+func (h *AuthorizeSpotifyCommand) Run(ctx context.Context, sender types.Sender, update tbot.Update) error {
+	if update.Message.Chat.Type != "private" {
+		msg := tbot.NewMessage(update.FromChat().ID, "To authorize spotify, chat with bot in DM.")
+		_, err := sender.Send(msg)
+		return err
+	}
+
+	user, err := h.spotifyService.AuthorizeUser(ctx, sender, update)
 	if err != nil {
 		return err
 	}
-	msg := tbot.NewMessage(update.Message.Chat.ID, user.Username)
-	_, err = service.Send(msg)
+	msg := tbot.NewMessage(update.FromChat().ID, user.ID)
+	_, err = sender.Send(msg)
 	return err
 }
 

@@ -11,4 +11,6 @@ var ProvidersSet = wire.NewSet(
 	YoutubeClientProvider,
 	LoggerFactoryProviderSet,
 	NetworkProviders,
-	DBProviders)
+	DBProviders,
+	SpotifyAuthProviders,
+)
