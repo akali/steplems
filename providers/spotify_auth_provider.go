@@ -16,7 +16,7 @@ func ProvideSpotifyClientSecret() (types.SpotifyClientSecret, error) {
 }
 
 func ProvideSpotifyAuth(clientID types.SpotifyClientID, secret types.SpotifyClientSecret, hostname types.Hostname, port types.Port) *spotifyauth.Authenticator {
-	var redirectURI = fmt.Sprintf("http://%s:%s/callback", hostname, port)
+	var redirectURI = fmt.Sprintf("http://%s:%s/callback", string(hostname), string(port))
 	return spotifyauth.New(
 		spotifyauth.WithRedirectURL(redirectURI),
 		spotifyauth.WithClientID(string(clientID)),

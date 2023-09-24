@@ -51,7 +51,7 @@ func (w WireApplication) Start() error {
 		}
 	}
 
-	log.Printf("Starting application with hostname=%s\n", w.hostname)
+	log.Printf("Starting application with hostname=%s\n", string(w.hostname))
 
 	go w.authService.Serve()
 
