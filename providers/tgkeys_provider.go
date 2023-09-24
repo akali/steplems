@@ -1,20 +1,13 @@
 package providers
 
 import (
-	"fmt"
-	"os"
-
 	"steplems-bot/types"
 
 	"github.com/google/wire"
 )
 
 func ProvideBotToken() (types.TelegramBotToken, error) {
-	if token, ok := os.LookupEnv("TELEGRAM_TOKEN"); ok {
-		return types.TelegramBotToken(token), nil
-	} else {
-		return "", fmt.Errorf("token not found in environment variables")
-	}
+	return ProvideEnvironmentVariable[types.TelegramBotToken]("TELEGRAM_TOKEN")()
 }
 
 func ProvideBotWebhook() (types.TelegramWebhookAddress, error) {

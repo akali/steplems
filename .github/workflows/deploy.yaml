@@ -1,0 +1,23 @@
+name: Deployment Workflow
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  job_one:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: ssh deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /root/work/steplems
+            git pull origin master
+            git status
+            HOSTNAME="$(ip addr show enp0s3  | awk '$1 == "inet" { print $2 }' | cut -d/ -f1)" docker-compose up -d --build --remove-orphans
