@@ -5,19 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"github.com/olehan/kek"
-	"log"
-	"net/http"
-	"steplems-bot/persistence/telegram"
-	"strings"
-	"sync"
-
 	"steplems-bot/persistence/spotify"
+	"steplems-bot/persistence/telegram"
 	"steplems-bot/types"
+	"strings"
 
 	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	sapi "github.com/zmb3/spotify/v2"
 
-	"github.com/google/uuid"
 	"github.com/zmb3/spotify/v2/auth"
 )
 
@@ -25,12 +20,15 @@ type SpotifyService struct {
 	spotifyUserRepo  *spotify.UserRepository
 	telegramUserRepo *telegram.UserRepository
 	authenticator    *spotifyauth.Authenticator
+	authService      *SpotifyAuthService
+	port             types.Port
 	log              *kek.Logger
-	authMutex        sync.Mutex
 }
 
-func NewSpotifyService(userRepo *spotify.UserRepository, telegramUserRepo *telegram.UserRepository, authenticator *spotifyauth.Authenticator, lf *kek.Factory) *SpotifyService {
+func NewSpotifyService(port types.Port, authService *SpotifyAuthService, userRepo *spotify.UserRepository, telegramUserRepo *telegram.UserRepository, authenticator *spotifyauth.Authenticator, lf *kek.Factory) *SpotifyService {
 	return &SpotifyService{
+		port:             port,
+		authService:      authService,
 		spotifyUserRepo:  userRepo,
 		telegramUserRepo: telegramUserRepo,
 		authenticator:    authenticator,
@@ -46,9 +44,9 @@ func (s *SpotifyService) getSpotifyClient(ctx context.Context, telegramUser tele
 }
 
 func (s *SpotifyService) getOrCreateSpotifyClient(ctx context.Context, sender types.Sender, update tbot.Update) (*sapi.Client, error) {
-	externalTelegramUser := update.Message.From
+	externalTelegramUser := update.SentFrom()
 
-	telegramUser, err := s.telegramUserRepo.GetOrCreate(externalTelegramUser.ID, telegram.FromExternalTelegramUser(externalTelegramUser))
+	telegramUser, err := s.telegramUserRepo.GetOrCreate(externalTelegramUser.ID, telegram.FromExternalTelegramUser(externalTelegramUser, update.FromChat()))
 
 	if err != nil {
 		return nil, err
@@ -88,36 +86,7 @@ func (s *SpotifyService) createClient(ctx context.Context, user spotify.User) (*
 }
 
 func (s *SpotifyService) authorizeNewUser(ctx context.Context, sender types.Sender, update tbot.Update) (spotify.User, error) {
-	s.authMutex.Lock()
-	defer s.authMutex.Unlock()
-
-	ch := make(chan *sapi.Client)
-	state := uuid.NewString()
-
-	http.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		tok, err := s.authenticator.Token(r.Context(), state, r)
-		if err != nil {
-			http.Error(w, "Couldn't get token", http.StatusForbidden)
-			log.Fatal(err)
-		}
-		if st := r.FormValue("state"); st != state {
-			http.NotFound(w, r)
-			log.Fatalf("State mismatch: %s != %s\n", st, state)
-		}
-
-		// use the token to get an authenticated client
-		client := sapi.New(s.authenticator.Client(r.Context(), tok))
-
-		s.log.Info.Println(fmt.Sprintf("Login for user %s completed!", update.Message.From.UserName))
-		ch <- client
-	})
-
-	go func() {
-		err := http.ListenAndServe(":8080", nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
+	state, ch := s.authService.ExpectAuthorize()
 
 	url := s.authenticator.AuthURL(state)
 	msg := tbot.NewMessage(update.FromChat().ID, fmt.Sprintf("Follow link below to authorize: %s", url))
@@ -185,9 +154,9 @@ func (s SpotifySongMessage) AudioMessage(chatID int64) tbot.AudioConfig {
 }
 
 func (s *SpotifyService) NowPlaying(ctx context.Context, sender types.Sender, update tbot.Update) error {
-	externalTelegramUser := update.Message.From
+	externalTelegramUser := update.SentFrom()
 
-	telegramUser, err := s.telegramUserRepo.GetOrCreate(externalTelegramUser.ID, telegram.FromExternalTelegramUser(externalTelegramUser))
+	telegramUser, err := s.telegramUserRepo.GetOrCreate(externalTelegramUser.ID, telegram.FromExternalTelegramUser(externalTelegramUser, update.FromChat()))
 
 	if err != nil {
 		return err

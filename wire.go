@@ -11,6 +11,7 @@ import (
 	"steplems-bot/persistence/spotify"
 	telegram2 "steplems-bot/persistence/telegram"
 	"steplems-bot/services"
+	spotify2 "steplems-bot/services/spotify"
 	"steplems-bot/services/telegram"
 	"steplems-bot/types"
 )
@@ -21,10 +22,11 @@ type WireApplication struct {
 	sUserRepo       *spotify.UserRepository
 	tUserRepo       *telegram2.UserRepository
 	hostname        types.Hostname
+	authService     *spotify2.SpotifyAuthService
 }
 
-func provideWireApplication(telegramService *telegram.TelegramService, hostname types.Hostname, sUserRepo *spotify.UserRepository, tUserRepo *telegram2.UserRepository) WireApplication {
-	return WireApplication{telegramService: telegramService, sUserRepo: sUserRepo, tUserRepo: tUserRepo, hostname: hostname}
+func provideWireApplication(authService *spotify2.SpotifyAuthService, telegramService *telegram.TelegramService, hostname types.Hostname, sUserRepo *spotify.UserRepository, tUserRepo *telegram2.UserRepository) WireApplication {
+	return WireApplication{authService: authService, telegramService: telegramService, sUserRepo: sUserRepo, tUserRepo: tUserRepo, hostname: hostname}
 }
 
 func NewWireApplication() (WireApplication, error) {
@@ -50,6 +52,8 @@ func (w WireApplication) Start() error {
 	}
 
 	log.Printf("Starting application with hostname=%s\n", w.hostname)
+
+	go w.authService.Serve()
 
 	return w.telegramService.StartBot(ctx)
 }

@@ -9,10 +9,10 @@ package main
 import (
 	"context"
 	"log"
-	"steplems-bot/persistence/spotify"
+	spotify2 "steplems-bot/persistence/spotify"
 	"steplems-bot/persistence/telegram"
 	"steplems-bot/providers"
-	spotify2 "steplems-bot/services/spotify"
+	"steplems-bot/services/spotify"
 	telegram2 "steplems-bot/services/telegram"
 	"steplems-bot/services/telegram/commands"
 	"steplems-bot/services/youtube"
@@ -22,6 +22,25 @@ import (
 // Injectors from wire.go:
 
 func NewWireApplication() (WireApplication, error) {
+	port, err := providers.ProvidePort()
+	if err != nil {
+		return WireApplication{}, err
+	}
+	spotifyClientID, err := providers.ProvideSpotifyClientID()
+	if err != nil {
+		return WireApplication{}, err
+	}
+	spotifyClientSecret, err := providers.ProvideSpotifyClientSecret()
+	if err != nil {
+		return WireApplication{}, err
+	}
+	hostname, err := providers.ProvideHostname()
+	if err != nil {
+		return WireApplication{}, err
+	}
+	authenticator := providers.ProvideSpotifyAuth(spotifyClientID, spotifyClientSecret, hostname, port)
+	factory := providers.LoggerFactoryProvider()
+	spotifyAuthService := spotify.NewSpotifyAuthService(port, authenticator, factory)
 	telegramBotToken, err := providers.ProvideBotToken()
 	if err != nil {
 		return WireApplication{}, err
@@ -35,7 +54,6 @@ func NewWireApplication() (WireApplication, error) {
 		return WireApplication{}, err
 	}
 	client := providers.ProvideYoutubeClient()
-	factory := providers.LoggerFactoryProvider()
 	youtubeService := youtube.NewYoutubeService(client, factory)
 	databaseConnectionURL, err := providers.ProvideDatabaseConnectionURL()
 	if err != nil {
@@ -45,32 +63,15 @@ func NewWireApplication() (WireApplication, error) {
 	if err != nil {
 		return WireApplication{}, err
 	}
-	userRepository := spotify.NewSpotifyUserRepository(db)
+	userRepository := spotify2.NewSpotifyUserRepository(db)
 	telegramUserRepository := telegram.NewUserRepository(db)
-	spotifyClientID, err := providers.ProvideSpotifyClientID()
-	if err != nil {
-		return WireApplication{}, err
-	}
-	spotifyClientSecret, err := providers.ProvideSpotifyClientSecret()
-	if err != nil {
-		return WireApplication{}, err
-	}
-	hostname, err := providers.ProvideHostname()
-	if err != nil {
-		return WireApplication{}, err
-	}
-	port, err := providers.ProvidePort()
-	if err != nil {
-		return WireApplication{}, err
-	}
-	authenticator := providers.ProvideSpotifyAuth(spotifyClientID, spotifyClientSecret, hostname, port)
-	spotifyService := spotify2.NewSpotifyService(userRepository, telegramUserRepository, authenticator, factory)
+	spotifyService := spotify.NewSpotifyService(port, spotifyAuthService, userRepository, telegramUserRepository, authenticator, factory)
 	authorizeSpotifyCommand := commands.NewAuthorizeSpotifyCommand(spotifyService)
 	helpCommand := commands.NewHelpCommand()
 	nowPlayingCommand := commands.NewNowPlayingCommand(spotifyService)
 	commandMap := telegram2.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand)
 	telegramService := telegram2.NewTelegramService(botAPI, youtubeService, factory, commandMap)
-	wireApplication := provideWireApplication(telegramService, hostname, userRepository, telegramUserRepository)
+	wireApplication := provideWireApplication(spotifyAuthService, telegramService, hostname, userRepository, telegramUserRepository)
 	return wireApplication, nil
 }
 
@@ -78,13 +79,14 @@ func NewWireApplication() (WireApplication, error) {
 
 type WireApplication struct {
 	telegramService *telegram2.TelegramService
-	sUserRepo       *spotify.UserRepository
+	sUserRepo       *spotify2.UserRepository
 	tUserRepo       *telegram.UserRepository
 	hostname        types.Hostname
+	authService     *spotify.SpotifyAuthService
 }
 
-func provideWireApplication(telegramService *telegram2.TelegramService, hostname types.Hostname, sUserRepo *spotify.UserRepository, tUserRepo *telegram.UserRepository) WireApplication {
-	return WireApplication{telegramService: telegramService, sUserRepo: sUserRepo, tUserRepo: tUserRepo, hostname: hostname}
+func provideWireApplication(authService *spotify.SpotifyAuthService, telegramService *telegram2.TelegramService, hostname types.Hostname, sUserRepo *spotify2.UserRepository, tUserRepo *telegram.UserRepository) WireApplication {
+	return WireApplication{authService: authService, telegramService: telegramService, sUserRepo: sUserRepo, tUserRepo: tUserRepo, hostname: hostname}
 }
 
 func (w WireApplication) Start() error {
@@ -101,6 +103,8 @@ func (w WireApplication) Start() error {
 		}
 	}
 	log.Printf("Starting application with hostname=%s\n", w.hostname)
+
+	go w.authService.Serve()
 
 	return w.telegramService.StartBot(ctx)
 }

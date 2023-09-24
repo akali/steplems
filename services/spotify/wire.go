@@ -2,4 +2,4 @@ package spotify
 
 import "github.com/google/wire"
 
-var SpotifyServiceProviderSet = wire.NewSet(NewSpotifyService)
+var SpotifyServiceProviderSet = wire.NewSet(NewSpotifyService, NewSpotifyAuthService)

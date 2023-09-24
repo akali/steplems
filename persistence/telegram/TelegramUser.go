@@ -20,6 +20,7 @@ type User struct {
 	LastName     string `json:"last_name,omitempty"`
 	UserName     string `json:"username,omitempty"`
 	LanguageCode string `json:"language_code,omitempty"`
+	ChatID       int64  `json:"chat_id,omitempty"`
 
 	SpotifyUserID sql.NullString `gorm:"column:spotify_user_id"`
 	SpotifyUser   spotify.User   `gorm:"foreignKey:SpotifyUserID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
@@ -29,7 +30,7 @@ func (User) TableName() string {
 	return "TelegramUser"
 }
 
-func FromExternalTelegramUser(user *tbot.User) User {
+func FromExternalTelegramUser(user *tbot.User, chat *tbot.Chat) User {
 	return User{
 		TelegramExternalID: user.ID,
 
@@ -38,5 +39,7 @@ func FromExternalTelegramUser(user *tbot.User) User {
 		LastName:     user.LastName,
 		UserName:     user.UserName,
 		LanguageCode: user.LanguageCode,
+
+		ChatID: chat.ID,
 	}
 }
