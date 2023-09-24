@@ -18,6 +18,6 @@ jobs:
           port: 22
           script: |
             cd /root/work/steplems
-            git pull origin master
+            git pull origin main
             git status
             HOSTNAME="$(ip addr show enp0s3  | awk '$1 == "inet" { print $2 }' | cut -d/ -f1)" docker-compose up -d --build --remove-orphans
