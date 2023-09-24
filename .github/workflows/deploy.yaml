@@ -20,4 +20,4 @@ jobs:
             cd /root/work/steplems
             git pull origin main
             git status
-            HOSTNAME="$(ip addr show enp0s3  | awk '$1 == "inet" { print $2 }' | cut -d/ -f1)" docker-compose up -d --build --remove-orphans
+            HOSTNAME="${{ secrets.REMOTE_HOST }}" docker-compose up -d --build --remove-orphans
