@@ -13,6 +13,7 @@ import (
 	"steplems-bot/persistence/spotify_persistence"
 	"steplems-bot/persistence/telegram_persistence"
 	"steplems-bot/providers"
+	"steplems-bot/services/chatgpt"
 	"steplems-bot/services/spotify"
 	"steplems-bot/services/telegram"
 	"steplems-bot/services/telegram/commands"
@@ -70,7 +71,14 @@ func NewWireApplication() (WireApplication, error) {
 	authorizeSpotifyCommand := commands.NewAuthorizeSpotifyCommand(spotifyService)
 	helpCommand := commands.NewHelpCommand()
 	nowPlayingCommand := commands.NewNowPlayingCommand(spotifyService)
-	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand)
+	openAIToken, err := providers.ProvideOpenAIToken()
+	if err != nil {
+		return WireApplication{}, err
+	}
+	openaiClient := providers.ProvideOpenAIClient(openAIToken)
+	chatGPTService := chatgpt.New(openaiClient)
+	chatGPTCommand := commands.NewChatGPTCommand(chatGPTService)
+	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand, chatGPTCommand)
 	telegramService := telegram.NewTelegramService(botAPI, youtubeService, factory, commandMap)
 	wireApplication := provideWireApplication(spotifyService, spotifyAuthService, telegramService, hostname, userRepository, telegram_persistenceUserRepository)
 	return wireApplication, nil
