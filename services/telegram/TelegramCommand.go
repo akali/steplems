@@ -16,14 +16,16 @@ func NewCommandMap(
 	authorizeSpotifyCommand *commands.AuthorizeSpotifyCommand,
 	helpCommand *commands.HelpCommand,
 	nowPlayingCommand *commands.NowPlayingCommand,
+	chatGPTCommand *commands.ChatGPTCommand,
 ) *CommandMap {
-	commands := []TelegramCommand{
+	cmdList := []TelegramCommand{
 		helpCommand,
 		authorizeSpotifyCommand,
 		nowPlayingCommand,
+		chatGPTCommand,
 	}
 	cm := CommandMap{commands: make(map[string]TelegramCommand)}
-	for _, command := range commands {
+	for _, command := range cmdList {
 		cm.commands[command.Command()] = command
 	}
 	return &cm

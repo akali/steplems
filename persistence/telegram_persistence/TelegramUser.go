@@ -1,10 +1,10 @@
-package telegram
+package telegram_persistence
 
 import (
 	"database/sql"
 	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"gorm.io/gorm"
-	"steplems-bot/persistence/spotify"
+	spotify "steplems-bot/persistence/spotify_persistence"
 	"time"
 )
 
