@@ -11,9 +11,9 @@ require (
 	github.com/kkdai/youtube/v2 v2.9.0
 	github.com/olehan/kek v0.1.1
 	github.com/zmb3/spotify/v2 v2.4.0
+	golang.org/x/image v0.0.0-20190802002840-cff245a6509b
 	golang.org/x/oauth2 v0.0.0-20210810183815-faf39c7919d5
 	gorm.io/driver/postgres v1.5.2
-	gorm.io/driver/sqlite v1.5.3
 	gorm.io/gorm v1.25.4
 )
 
@@ -30,7 +30,6 @@ require (
 	github.com/jackc/pgx/v5 v5.3.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/mattn/go-sqlite3 v1.14.17 // indirect
 	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/net v0.15.0 // indirect
 	golang.org/x/text v0.13.0 // indirect

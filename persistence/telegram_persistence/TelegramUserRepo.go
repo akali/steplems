@@ -1,11 +1,10 @@
-package telegram
+package telegram_persistence
 
 import (
 	"database/sql"
 	"errors"
 	"gorm.io/gorm"
-	"steplems-bot/persistence"
-	"steplems-bot/persistence/spotify"
+	"steplems-bot/persistence/spotify_persistence"
 )
 
 type UserRepository struct {
@@ -21,7 +20,9 @@ func NewUserRepository(DB *gorm.DB) *UserRepository {
 }
 
 func (p *UserRepository) FindAll() []User {
-	return persistence.FindAll[User](p.DB)
+	var result []User
+	p.DB.Find(&result)
+	return result
 }
 
 func (p *UserRepository) Create(user User) (User, error) {
@@ -57,24 +58,24 @@ func (p *UserRepository) GetOrCreate(externalID int64, newUser User) (User, erro
 
 var NoSpotifyUserFound = errors.New("no spotify user found")
 
-func (p *UserRepository) EnsureSpotifyUserExists(telegramUserID int64) (spotify.User, error) {
+func (p *UserRepository) EnsureSpotifyUserExists(telegramUserID int64) (spotify_persistence.User, error) {
 	// Check if the TelegramUser already has a SpotifyUser
 	var telegramUser User
 	result := p.DB.Preload("SpotifyUser").Where("telegram_external_id = ?", telegramUserID).First(&telegramUser)
 	if result.Error != nil {
-		return spotify.User{}, result.Error // Error occurred while checking
+		return spotify_persistence.User{}, result.Error // Error occurred while checking
 	}
 
 	// If the TelegramUser does not have a SpotifyUser, return an error
 	if telegramUser.SpotifyUser.ID == "" {
-		return spotify.User{}, NoSpotifyUserFound
+		return spotify_persistence.User{}, NoSpotifyUserFound
 	}
 
 	// Return the existing SpotifyUser
 	return telegramUser.SpotifyUser, nil
 }
 
-func (p *UserRepository) SaveSpotifyUser(user User, spotifyUser spotify.User) error {
+func (p *UserRepository) SaveSpotifyUser(user User, spotifyUser spotify_persistence.User) error {
 	user.SpotifyUserID = sql.NullString{String: spotifyUser.ID, Valid: true}
 	return p.DB.Save(&user).Error
 }

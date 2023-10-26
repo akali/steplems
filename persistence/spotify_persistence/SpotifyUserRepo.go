@@ -1,8 +1,7 @@
-package spotify
+package spotify_persistence
 
 import (
 	"gorm.io/gorm"
-	"steplems-bot/persistence"
 )
 
 type UserRepository struct {
@@ -14,7 +13,9 @@ func NewSpotifyUserRepository(DB *gorm.DB) *UserRepository {
 }
 
 func (p *UserRepository) FindAll() []User {
-	return persistence.FindAll[User](p.DB)
+	var result []User
+	p.DB.Find(&result)
+	return result
 }
 
 func (p *UserRepository) Create(user User) (User, error) {

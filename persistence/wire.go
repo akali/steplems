@@ -1,12 +1,9 @@
-//go:build wireinject
-// +build wireinject
-
 package persistence
 
 import (
 	"github.com/google/wire"
-	"steplems-bot/persistence/spotify"
-	"steplems-bot/persistence/telegram"
+	"steplems-bot/persistence/spotify_persistence"
+	"steplems-bot/persistence/telegram_persistence"
 )
 
-var PersistenceSet = wire.NewSet(telegram.PersistenceSet, spotify.PersistenceSet)
+var PersistenceSet = wire.NewSet(telegram_persistence.TelegramPersistenceSet, spotify_persistence.SpotifyPersistenceSet)

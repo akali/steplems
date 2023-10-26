@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/olehan/kek"
-	"steplems-bot/persistence/spotify"
-	"steplems-bot/persistence/telegram"
+	spotify2 "steplems-bot/persistence/spotify_persistence"
+	telegram2 "steplems-bot/persistence/telegram_persistence"
 	"steplems-bot/types"
 	"strings"
 
@@ -17,15 +17,15 @@ import (
 )
 
 type SpotifyService struct {
-	spotifyUserRepo  *spotify.UserRepository
-	telegramUserRepo *telegram.UserRepository
+	spotifyUserRepo  *spotify2.UserRepository
+	telegramUserRepo *telegram2.UserRepository
 	authenticator    *spotifyauth.Authenticator
 	authService      *SpotifyAuthService
 	port             types.Port
 	log              *kek.Logger
 }
 
-func NewSpotifyService(port types.Port, authService *SpotifyAuthService, userRepo *spotify.UserRepository, telegramUserRepo *telegram.UserRepository, authenticator *spotifyauth.Authenticator, lf *kek.Factory) *SpotifyService {
+func NewSpotifyService(port types.Port, authService *SpotifyAuthService, userRepo *spotify2.UserRepository, telegramUserRepo *telegram2.UserRepository, authenticator *spotifyauth.Authenticator, lf *kek.Factory) *SpotifyService {
 	return &SpotifyService{
 		port:             port,
 		authService:      authService,
@@ -35,18 +35,18 @@ func NewSpotifyService(port types.Port, authService *SpotifyAuthService, userRep
 		log:              lf.NewLogger("SpotifyService")}
 }
 
-func (s *SpotifyService) getSpotifyClient(ctx context.Context, telegramUser telegram.User) (*sapi.Client, error) {
+func (s *SpotifyService) getSpotifyClient(ctx context.Context, telegramUser telegram2.User) (*sapi.Client, error) {
 	spotifyUser, err := s.telegramUserRepo.EnsureSpotifyUserExists(telegramUser.TelegramExternalID)
 	if err != nil {
 		return nil, err
 	}
-	return s.createClient(ctx, spotifyUser)
+	return s.CreateClient(ctx, spotifyUser)
 }
 
 func (s *SpotifyService) getOrCreateSpotifyClient(ctx context.Context, sender types.Sender, update tbot.Update) (*sapi.Client, error) {
 	externalTelegramUser := update.SentFrom()
 
-	telegramUser, err := s.telegramUserRepo.GetOrCreate(externalTelegramUser.ID, telegram.FromExternalTelegramUser(externalTelegramUser, update.FromChat()))
+	telegramUser, err := s.telegramUserRepo.GetOrCreate(externalTelegramUser.ID, telegram2.FromExternalTelegramUser(externalTelegramUser, update.FromChat()))
 
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (s *SpotifyService) getOrCreateSpotifyClient(ctx context.Context, sender ty
 
 	client, err := s.getSpotifyClient(ctx, telegramUser)
 	if err != nil {
-		if errors.Is(err, telegram.NoSpotifyUserFound) {
+		if errors.Is(err, telegram2.NoSpotifyUserFound) {
 			// Spotify spotifyUser does not exist yet.
 			// Let's create one
 			return s.authorizeAndSaveNewUser(ctx, sender, update, telegramUser)
@@ -65,44 +65,44 @@ func (s *SpotifyService) getOrCreateSpotifyClient(ctx context.Context, sender ty
 	return client, nil
 }
 
-func (s *SpotifyService) AuthorizeUser(ctx context.Context, sender types.Sender, update tbot.Update) (spotify.User, error) {
+func (s *SpotifyService) AuthorizeUser(ctx context.Context, sender types.Sender, update tbot.Update) (spotify2.User, error) {
 	client, err := s.getOrCreateSpotifyClient(ctx, sender, update)
 	if err != nil {
-		return spotify.User{}, err
+		return spotify2.User{}, err
 	}
 	privateUser, err := client.CurrentUser(ctx)
 	if err != nil {
-		return spotify.User{}, err
+		return spotify2.User{}, err
 	}
-	return spotify.PrivateUserToUser(privateUser), nil
+	return spotify2.PrivateUserToUser(privateUser), nil
 }
 
-func (s *SpotifyService) FindAll() []spotify.User {
+func (s *SpotifyService) FindAll() []spotify2.User {
 	return s.spotifyUserRepo.FindAll()
 }
 
-func (s *SpotifyService) createClient(ctx context.Context, user spotify.User) (*sapi.Client, error) {
+func (s *SpotifyService) CreateClient(ctx context.Context, user spotify2.User) (*sapi.Client, error) {
 	return sapi.New(s.authenticator.Client(ctx, user.OAuthToken())), nil
 }
 
-func (s *SpotifyService) authorizeNewUser(ctx context.Context, sender types.Sender, update tbot.Update) (spotify.User, error) {
+func (s *SpotifyService) authorizeNewUser(ctx context.Context, sender types.Sender, update tbot.Update) (spotify2.User, error) {
 	state, ch := s.authService.ExpectAuthorize()
 
 	url := s.authenticator.AuthURL(state)
 	msg := tbot.NewMessage(update.FromChat().ID, fmt.Sprintf("Follow link below to authorize: %s", url))
 	if _, err := sender.Send(msg); err != nil {
-		return spotify.User{}, err
+		return spotify2.User{}, err
 	}
 	client := <-ch
 
 	privateUser, err := client.CurrentUser(ctx)
 	if err != nil {
-		return spotify.User{}, err
+		return spotify2.User{}, err
 	}
-	user := spotify.PrivateUserToUser(privateUser)
+	user := spotify2.PrivateUserToUser(privateUser)
 	token, err := client.Token()
 	if err != nil {
-		return spotify.User{}, err
+		return spotify2.User{}, err
 	}
 	return user.SetOAuthToken(token), nil
 }
@@ -156,7 +156,7 @@ func (s SpotifySongMessage) AudioMessage(chatID int64) tbot.AudioConfig {
 func (s *SpotifyService) NowPlaying(ctx context.Context, sender types.Sender, update tbot.Update) error {
 	externalTelegramUser := update.SentFrom()
 
-	telegramUser, err := s.telegramUserRepo.GetOrCreate(externalTelegramUser.ID, telegram.FromExternalTelegramUser(externalTelegramUser, update.FromChat()))
+	telegramUser, err := s.telegramUserRepo.GetOrCreate(externalTelegramUser.ID, telegram2.FromExternalTelegramUser(externalTelegramUser, update.FromChat()))
 
 	if err != nil {
 		return err
@@ -179,7 +179,7 @@ func (s *SpotifyService) NowPlaying(ctx context.Context, sender types.Sender, up
 	return err
 }
 
-func (s *SpotifyService) authorizeAndSaveNewUser(ctx context.Context, sender types.Sender, update tbot.Update, telegramUser telegram.User) (*sapi.Client, error) {
+func (s *SpotifyService) authorizeAndSaveNewUser(ctx context.Context, sender types.Sender, update tbot.Update, telegramUser telegram2.User) (*sapi.Client, error) {
 	spotifyUser, err := s.authorizeNewUser(ctx, sender, update)
 	if err != nil {
 		return nil, err
@@ -191,5 +191,5 @@ func (s *SpotifyService) authorizeAndSaveNewUser(ctx context.Context, sender typ
 	if err := s.telegramUserRepo.SaveSpotifyUser(telegramUser, spotifyUser); err != nil {
 		return nil, err
 	}
-	return s.createClient(ctx, spotifyUser)
+	return s.CreateClient(ctx, spotifyUser)
 }

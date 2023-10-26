@@ -1,4 +1,4 @@
-package spotify
+package spotify_persistence
 
 import (
 	sapi "github.com/zmb3/spotify/v2"
