@@ -11,4 +11,5 @@ var ProvidersSet = wire.NewSet(
 	DBProviders,
 	SpotifyAuthProviders,
 	OpenAIProviders,
+	GoInstaProviders,
 )

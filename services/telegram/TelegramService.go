@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/go-multierror"
+	"steplems-bot/services/instagram"
 	"strings"
 
 	"github.com/olehan/kek"
@@ -15,16 +16,19 @@ import (
 type TelegramService struct {
 	api       *tbot.BotAPI
 	ytService *youtube.YoutubeService
+	igService *instagram.InstagramService
 	logger    *kek.Logger
 	commands  map[string]TelegramCommand
 }
 
 func NewTelegramService(api *tbot.BotAPI,
 	ytService *youtube.YoutubeService,
+	igService *instagram.InstagramService,
 	kekFactory *kek.Factory,
 	cm *CommandMap) *TelegramService {
 	return &TelegramService{api: api,
 		ytService: ytService,
+		igService: igService,
 		logger:    kekFactory.NewLogger("TelegramService"),
 		commands:  cm.commands,
 	}
@@ -37,12 +41,23 @@ func (t *TelegramService) StartBot(ctx context.Context) error {
 		t.logger.Error.Println("Failed to set commands: ", err.Error())
 		return err
 	}
+	go func() {
+		restartChan := make(chan struct{}, 1)
+		go func() {
+			for range restartChan {
+				go t.igService.Run("steplems", t.api, -1001373947640, restartChan)
+			}
+		}()
+		restartChan <- struct{}{}
+	}()
+
 	for update := range updates {
+		update := update
 		go func() {
 			ctx, _ := context.WithCancel(ctx)
 			err := t.OnUpdate(ctx, update)
 			if err != nil {
-				t.logger.Error.Println("Received error OnUpdate: ", err)
+				t.logger.Error.Println("Received error OnUpdate: ", err.Error())
 			}
 		}()
 	}
@@ -50,7 +65,7 @@ func (t *TelegramService) StartBot(ctx context.Context) error {
 }
 
 func (t *TelegramService) OnUpdate(ctx context.Context, update tbot.Update) error {
-	t.logger.Debug.Println("received an update: ", update)
+	t.logger.Debug.Println("received an update from chat: ", *update.FromChat(), " | ", update)
 	if update.Message != nil {
 		t.logger.Debug.Println(update.Message.Text)
 	}
@@ -73,7 +88,11 @@ func (t *TelegramService) OnUpdate(ctx context.Context, update tbot.Update) erro
 		}
 	}
 	if update.Message.IsCommand() {
-		if err := t.commands[update.Message.Command()].Run(ctx, t, update); err != nil {
+		command, ok := t.commands[update.Message.Command()]
+		if !ok {
+			return nil
+		}
+		if err := command.Run(ctx, t, update); err != nil {
 			msg := tbot.NewMessage(update.FromChat().ID, fmt.Sprintf("command error: %q", err.Error()))
 			msg.ReplyToMessageID = update.Message.MessageID
 			_, newErr := t.Send(msg)
