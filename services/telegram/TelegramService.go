@@ -67,7 +67,7 @@ func (t *TelegramService) StartBot(ctx context.Context) error {
 func (t *TelegramService) OnUpdate(ctx context.Context, update tbot.Update) error {
 	t.logger.Debug.Println("received an update from chat: ", *update.FromChat(), " | ", update)
 	if update.Message != nil {
-		t.logger.Debug.Println(update.Message.Text)
+		t.logger.Debug.Println(*update.SentFrom(), update.Message.Text)
 	}
 	if update.Message == nil {
 		return nil

@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gregjones/httpcache/diskcache"
 	"github.com/loganrk/go-heap-cache"
 
 	_ "gopkg.in/yaml.v2"
@@ -31,14 +32,15 @@ type InstagramService struct {
 	configPath    types.GoInstaConfigPath
 	lastCheckTime time.Time
 	profileCache  cache.Cache
-	seenCache     cache.Cache
+	seenCache     *diskcache.Cache
 	chatID        int64
 }
 
-func New(client *goinsta.Instagram, configPath types.GoInstaConfigPath) *InstagramService {
+func New(client *goinsta.Instagram, configPath types.GoInstaConfigPath, cachePath types.InstaCachePath) *InstagramService {
 	return &InstagramService{
 		client:        client,
 		configPath:    configPath,
+		seenCache:     diskcache.New(string(cachePath)),
 		lastCheckTime: time.Now(),
 	}
 }
@@ -76,30 +78,16 @@ func (is *InstagramService) SetUpdateChatID(id int64) {
 	log.Printf("Updated ig update chat id to %d\n", id)
 }
 
-func (is *InstagramService) initSeen() {
-	is.seenCache = cache.New(&cache.Config{
-		Capacity:       1000,
-		Expire:         int64(time.Hour / 1e9),
-		EvictionPolicy: cache.EVICTION_POLICY_LRU,
-	})
-}
-
 func (is *InstagramService) seen(item *goinsta.InboxItem) bool {
-	if is.seenCache == nil {
-		is.initSeen()
-	}
-	value, err := is.seenCache.Get(item.ID)
-	if err != nil {
+	_, ok := is.seenCache.Get(item.ID)
+	if !ok {
 		return false
 	}
-	return value.(bool)
+	return true
 }
 
 func (is *InstagramService) markSeen(item *goinsta.InboxItem) {
-	if is.seenCache == nil {
-		is.initSeen()
-	}
-	is.seenCache.Set(item.ID, true)
+	is.seenCache.Set(item.ID, []byte{1})
 }
 
 func GetDownloadable(media goinsta.Item) (any, error) {

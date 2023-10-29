@@ -7,6 +7,8 @@ import (
 
 type GoInstaConfigPath string
 
+type InstaCachePath string
+
 type InstagramMessage struct {
 	Caption string
 	Link    string

@@ -77,7 +77,11 @@ func NewWireApplication() (WireApplication, error) {
 	if err != nil {
 		return WireApplication{}, err
 	}
-	instagramService := instagram.New(goinstaInstagram, goInstaConfigPath)
+	instaCachePath, err := providers.ProvideInstaCachePath()
+	if err != nil {
+		return WireApplication{}, err
+	}
+	instagramService := instagram.New(goinstaInstagram, goInstaConfigPath, instaCachePath)
 	authorizeSpotifyCommand := commands.NewAuthorizeSpotifyCommand(spotifyService)
 	helpCommand := commands.NewHelpCommand()
 	nowPlayingCommand := commands.NewNowPlayingCommand(spotifyService)
