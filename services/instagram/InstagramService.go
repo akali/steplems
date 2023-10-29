@@ -30,7 +30,8 @@ type InstagramService struct {
 	client        *goinsta.Instagram
 	configPath    types.GoInstaConfigPath
 	lastCheckTime time.Time
-	cache         cache.Cache
+	profileCache  cache.Cache
+	seenCache     cache.Cache
 	chatID        int64
 }
 
@@ -51,21 +52,21 @@ func (is *InstagramService) saveConfig() error {
 }
 
 func (is *InstagramService) getUserByIDCached(id int64) (*goinsta.User, error) {
-	if is.cache == nil {
-		is.cache = cache.New(&cache.Config{
+	if is.profileCache == nil {
+		is.profileCache = cache.New(&cache.Config{
 			Capacity:       cache.DEFAULT_CAPACITY,
 			Expire:         int64(time.Hour / 1e9),
 			EvictionPolicy: cache.EVICTION_POLICY_LRU,
 		})
 	}
 	key := fmt.Sprintf("%d", id)
-	value, err := is.cache.Get(key)
+	value, err := is.profileCache.Get(key)
 	if err != nil {
 		value, err = is.client.Profiles.ByID(id)
 		if err != nil {
 			return nil, err
 		}
-		is.cache.Set(key, value)
+		is.profileCache.Set(key, value)
 	}
 	return value.(*goinsta.User), nil
 }
@@ -73,6 +74,32 @@ func (is *InstagramService) getUserByIDCached(id int64) (*goinsta.User, error) {
 func (is *InstagramService) SetUpdateChatID(id int64) {
 	is.chatID = id
 	log.Printf("Updated ig update chat id to %d\n", id)
+}
+
+func (is *InstagramService) initSeen() {
+	is.seenCache = cache.New(&cache.Config{
+		Capacity:       1000,
+		Expire:         int64(time.Hour / 1e9),
+		EvictionPolicy: cache.EVICTION_POLICY_LRU,
+	})
+}
+
+func (is *InstagramService) seen(item *goinsta.InboxItem) bool {
+	if is.seenCache == nil {
+		is.initSeen()
+	}
+	value, err := is.seenCache.Get(item.ID)
+	if err != nil {
+		return false
+	}
+	return value.(bool)
+}
+
+func (is *InstagramService) markSeen(item *goinsta.InboxItem) {
+	if is.seenCache == nil {
+		is.initSeen()
+	}
+	is.seenCache.Set(item.ID, true)
 }
 
 func GetDownloadable(media goinsta.Item) (any, error) {
@@ -103,8 +130,9 @@ func (is *InstagramService) extractMessages(conv *goinsta.Conversation) ([]goins
 		for _, item := range conv.Items {
 			ts := time.UnixMicro(item.Timestamp)
 			// lastCheckTime < itemTime
-			if is.lastCheckTime.Before(ts) {
+			if is.lastCheckTime.Before(ts) || (is.lastCheckTime.Add(-time.Hour).Before(ts) && !is.seen(item)) {
 				if _, ok := items[item.ID]; !ok {
+					is.markSeen(item)
 					itemsAdded = true
 					items[item.ID] = *item
 					if len(items) >= UploadLimit {
