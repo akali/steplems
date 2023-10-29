@@ -266,7 +266,7 @@ func (is *InstagramService) runEach(chatTitle string, sender types.Sender, chatI
 		sender.Send(tbot.NewMessage(chatID, msg))
 		return
 	}
-	directory, err := os.MkdirTemp("tmp", "ig*")
+	directory, err := os.MkdirTemp("/tmp", "ig*")
 	if err != nil {
 		log.Printf("Failed to fetch updates: %w", updates)
 		return
