@@ -13,6 +13,8 @@ import (
 	"steplems-bot/services/youtube"
 )
 
+const EnableIgService = false
+
 type TelegramService struct {
 	api       *tbot.BotAPI
 	ytService *youtube.YoutubeService
@@ -41,15 +43,17 @@ func (t *TelegramService) StartBot(ctx context.Context) error {
 		t.logger.Error.Println("Failed to set commands: ", err.Error())
 		return err
 	}
-	go func() {
-		restartChan := make(chan struct{}, 1)
+	if EnableIgService {
 		go func() {
-			for range restartChan {
-				go t.igService.Run("steplems", t.api, -1001373947640, restartChan)
-			}
+			restartChan := make(chan struct{}, 1)
+			go func() {
+				for range restartChan {
+					go t.igService.Run("steplems", t.api, -1001373947640, restartChan)
+				}
+			}()
+			restartChan <- struct{}{}
 		}()
-		restartChan <- struct{}{}
-	}()
+	}
 
 	for update := range updates {
 		update := update
