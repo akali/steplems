@@ -219,7 +219,7 @@ func (is *InstagramService) perItemDownload(item goinsta.Item, directory string)
 func (is *InstagramService) downloadItems(items []goinsta.Item, directory string) ([]types.InstagramMessage, error) {
 	log.Printf("Have %d items to download.", len(items))
 
-	var result = []types.InstagramMessage{}
+	var result []types.InstagramMessage
 	for _, item := range items {
 
 		filename, err := retry.DoWithData(func() (string, error) {
@@ -231,9 +231,10 @@ func (is *InstagramService) downloadItems(items []goinsta.Item, directory string
 		}
 
 		result = append(result, types.InstagramMessage{
-			Caption: fmt.Sprintf("*Shared by [%s](https://instagram.com/%s)*\n%s\n", item.User.Username, item.User.Username, item.Caption.Text),
-			Link:    fmt.Sprintf("instagram.com/reel/%s", item.Code),
-			Path:    filename,
+			Username: item.User.Username,
+			Caption:  item.Caption.Text,
+			Link:     fmt.Sprintf("instagram.com/reel/%s", item.Code),
+			Path:     filename,
 		})
 	}
 	return result, nil
