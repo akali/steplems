@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"regexp"
 	"steplems-bot/types"
 	"strings"
 	"time"
@@ -26,6 +27,15 @@ const (
 	UpdateDuration = 1 * time.Minute
 	UploadLimit    = 10
 )
+
+const (
+	InstagramLinkRegex = `(((?:https?:)?\/\/)?((?:www|m)\.)?((?:instagram\.com))(\/((reel|post)\/))([\w\-]+)(\S+)?)`
+)
+
+func LinksMatching(text string) []string {
+	pattern := regexp.MustCompile(InstagramLinkRegex)
+	return pattern.FindAllString(text, -1)
+}
 
 type InstagramService struct {
 	client        *goinsta.Instagram
@@ -43,6 +53,14 @@ func New(client *goinsta.Instagram, configPath types.GoInstaConfigPath, cachePat
 		seenCache:     diskcache.New(string(cachePath)),
 		lastCheckTime: time.Now(),
 	}
+}
+
+func (is *InstagramService) MessageUpdate(message *tbot.Message) (tbot.VideoConfig, error) {
+	links := LinksMatching(message.Text)
+	if len(links) == 0 || message.From.IsBot {
+		return tbot.VideoConfig{}, nil
+	}
+	return tbot.VideoConfig{}, fmt.Errorf("unimplemented")
 }
 
 func (is *InstagramService) saveConfig() error {
