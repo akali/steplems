@@ -48,7 +48,7 @@ func NewWireApplication() (WireApplication, error) {
 	if err != nil {
 		return WireApplication{}, err
 	}
-	db, err := providers.ProvideDatabase(databaseConnectionURL)
+	db, err := providers.ProvideDatabase(databaseConnectionURL, factory)
 	if err != nil {
 		return WireApplication{}, err
 	}
