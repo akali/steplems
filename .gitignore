@@ -1,3 +1,4 @@
 .env
 .goinsta
 database
+database.db

@@ -69,12 +69,12 @@ func (c *SetModelCommand) Run(ctx context.Context, sender types.Sender, update t
 	input := strings.TrimPrefix(update.Message.Text, "/"+c.Command())
 	input = strings.TrimSuffix(strings.TrimPrefix(input, " "), " ")
 
-	m := types.ModelStorage{}
+	m := &types.ModelStorage{}
 
 	if input == "openai" {
-		m = DefaultModel
+		m = &DefaultModel
 	} else if input == "deepinfra" {
-		m = DeepInfraDefaultModel
+		m = &DeepInfraDefaultModel
 	} else {
 		if err := json.Unmarshal([]byte(input), m); err != nil {
 			return err
@@ -85,7 +85,7 @@ func (c *SetModelCommand) Run(ctx context.Context, sender types.Sender, update t
 		}
 	}
 
-	model = m
+	model = *m
 	_, err := sender.Send(tbot.NewMessage(update.FromChat().ID, fmt.Sprintf("model updated to: %q", model)))
 	return err
 }
