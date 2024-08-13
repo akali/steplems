@@ -90,9 +90,15 @@ func NewWireApplication() (WireApplication, error) {
 		return WireApplication{}, err
 	}
 	openaiClient := providers.ProvideOpenAIClient(openAIToken)
-	chatGPTService := chatgpt.New(openaiClient)
+	deepInfraToken, err := providers.ProvideDeepInfraToken()
+	if err != nil {
+		return WireApplication{}, err
+	}
+	deepInfraClient := providers.ProvideDeepInfraClient(deepInfraToken)
+	chatGPTService := chatgpt.New(openaiClient, deepInfraClient, factory)
 	chatGPTCommand := commands.NewChatGPTCommand(chatGPTService)
-	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand, chatGPTCommand)
+	setModelCommand := commands.NewSetModelCommand()
+	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand, chatGPTCommand, setModelCommand)
 	telegramService := telegram.NewTelegramService(botAPI, youtubeService, instagramService, factory, commandMap)
 	wireApplication := provideWireApplication(spotifyService, spotifyAuthService, telegramService, hostname, userRepository, telegram_persistenceUserRepository)
 	return wireApplication, nil
