@@ -3,7 +3,7 @@ package chatgpt
 import (
 	"context"
 	"fmt"
-	"github.com/olehan/kek"
+	"github.com/rs/zerolog"
 	"github.com/sashabaranov/go-openai"
 	"steplems-bot/types"
 )
@@ -11,14 +11,14 @@ import (
 type ChatGPTService struct {
 	client          *openai.Client
 	deepInfraClient *types.DeepInfraClient
-	logger          *kek.Logger
+	logger          zerolog.Logger
 }
 
-func New(client *openai.Client, deepInfraClient *types.DeepInfraClient, kekFactory *kek.Factory) *ChatGPTService {
+func New(client *openai.Client, deepInfraClient *types.DeepInfraClient, logger zerolog.Logger) *ChatGPTService {
 	return &ChatGPTService{
 		client:          client,
 		deepInfraClient: deepInfraClient,
-		logger:          kekFactory.NewLogger("ChatGPTService"),
+		logger:          logger,
 	}
 }
 
