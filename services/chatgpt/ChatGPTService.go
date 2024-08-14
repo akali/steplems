@@ -10,11 +10,11 @@ import (
 
 type ChatGPTService struct {
 	client          *openai.Client
-	deepInfraClient *types.DeepInfraClient
+	deepInfraClient *types.DeepInfraOpenAIClient
 	logger          zerolog.Logger
 }
 
-func New(client *openai.Client, deepInfraClient *types.DeepInfraClient, logger zerolog.Logger) *ChatGPTService {
+func New(client *openai.Client, deepInfraClient *types.DeepInfraOpenAIClient, logger zerolog.Logger) *ChatGPTService {
 	return &ChatGPTService{
 		client:          client,
 		deepInfraClient: deepInfraClient,

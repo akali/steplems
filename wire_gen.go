@@ -16,6 +16,7 @@ import (
 	"steplems-bot/services/chatgpt"
 	"steplems-bot/services/instagram"
 	"steplems-bot/services/spotify"
+	"steplems-bot/services/stablediffusion"
 	"steplems-bot/services/telegram"
 	"steplems-bot/services/telegram/commands"
 	"steplems-bot/services/youtube"
@@ -95,11 +96,14 @@ func NewWireApplication() (WireApplication, error) {
 	if err != nil {
 		return WireApplication{}, err
 	}
-	deepInfraClient := providers.ProvideDeepInfraClient(deepInfraToken)
-	chatGPTService := chatgpt.New(openaiClient, deepInfraClient, logger)
+	deepInfraOpenAIClient := providers.ProvideDeepInfraOpenAIClient(deepInfraToken)
+	chatGPTService := chatgpt.New(openaiClient, deepInfraOpenAIClient, logger)
 	chatGPTCommand := commands.NewChatGPTCommand(chatGPTService)
 	setModelCommand := commands.NewSetModelCommand()
-	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand, chatGPTCommand, setModelCommand)
+	deepinfraClient := providers.ProvideDeepInfraClient(deepInfraToken)
+	stableDiffusionService := stablediffusion.NewStableDiffusionService(deepinfraClient, logger)
+	stableDiffusionCommand := commands.NewStableDiffusionCommand(stableDiffusionService)
+	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand, chatGPTCommand, setModelCommand, stableDiffusionCommand)
 	telegramService := telegram.NewTelegramService(botAPI, youtubeService, instagramService, logger, commandMap)
 	wireApplication := provideWireApplication(spotifyService, spotifyAuthService, telegramService, hostname, userRepository, telegram_persistenceUserRepository)
 	return wireApplication, nil

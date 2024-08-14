@@ -17,6 +17,7 @@ func NewCommandMap(
 	nowPlayingCommand *commands.NowPlayingCommand,
 	chatGPTCommand *commands.ChatGPTCommand,
 	setModelCommand *commands.SetModelCommand,
+	stableDiffusionCommand *commands.StableDiffusionCommand,
 ) *CommandMap {
 	cmdList := []TelegramCommand{
 		helpCommand,
@@ -24,6 +25,7 @@ func NewCommandMap(
 		nowPlayingCommand,
 		chatGPTCommand,
 		setModelCommand,
+		stableDiffusionCommand,
 	}
 	cm := CommandMap{commands: make(map[string]TelegramCommand)}
 	for _, command := range cmdList {

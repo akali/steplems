@@ -97,7 +97,11 @@ func (t *TelegramService) OnUpdate(ctx context.Context, update tbot.Update) erro
 			return nil
 		}
 		cc := lib.NewChatContext(ctx, t, update)
-		if err := command.Run(cc); err != nil {
+		err := command.Run(cc)
+		if cc.Err != nil {
+			t.logger.Err(err).Msg("")
+		}
+		if err != nil {
 			msg := tbot.NewMessage(update.FromChat().ID, fmt.Sprintf("command error: %q", err.Error()))
 			msg.ReplyToMessageID = update.Message.MessageID
 			_, newErr := t.Send(msg)
