@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/go-multierror"
+	"steplems-bot/lib"
 	"steplems-bot/services/instagram"
 	"strings"
 
@@ -96,7 +97,8 @@ func (t *TelegramService) OnUpdate(ctx context.Context, update tbot.Update) erro
 		if !ok {
 			return nil
 		}
-		if err := command.Run(ctx, t, update); err != nil {
+		cc := lib.NewChatContext(ctx, t, update)
+		if err := command.Run(cc); err != nil {
 			msg := tbot.NewMessage(update.FromChat().ID, fmt.Sprintf("command error: %q", err.Error()))
 			msg.ReplyToMessageID = update.Message.MessageID
 			_, newErr := t.Send(msg)

@@ -1,11 +1,10 @@
 package telegram
 
 import (
-	"context"
 	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/google/wire"
+	"steplems-bot/lib"
 	"steplems-bot/services/telegram/commands"
-	"steplems-bot/types"
 )
 
 type CommandMap struct {
@@ -38,7 +37,7 @@ var CommandMapProvider = wire.NewSet(
 	commands.CommandsProvider)
 
 type TelegramCommand interface {
-	Run(context.Context, types.Sender, tbot.Update) error
+	Run(cc *lib.ChatContext) error
 	Command() string
 	Description() string
 }

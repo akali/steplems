@@ -1,17 +1,14 @@
 package commands
 
 import (
-	"context"
-	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"steplems-bot/types"
+	"steplems-bot/lib"
 )
 
 type HelpCommand struct{}
 
-func (h *HelpCommand) Run(ctx context.Context, service types.Sender, update tbot.Update) error {
-	msg := tbot.NewMessage(update.FromChat().ID, "help requested")
-	_, err := service.Send(msg)
-	return err
+func (h *HelpCommand) Run(cc *lib.ChatContext) error {
+	cc.RespondText("help requested")
+	return nil
 }
 
 func (h *HelpCommand) Command() string {

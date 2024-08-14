@@ -1,11 +1,10 @@
 package commands
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sashabaranov/go-openai"
+	"steplems-bot/lib"
 	"steplems-bot/services/chatgpt"
 	"steplems-bot/types"
 	"strings"
@@ -25,19 +24,19 @@ func NewChatGPTCommand(service *chatgpt.ChatGPTService) *ChatGPTCommand {
 	}
 }
 
-func (c *ChatGPTCommand) Run(ctx context.Context, sender types.Sender, update tbot.Update) error {
-	if update.Message == nil {
+func (c *ChatGPTCommand) Run(cc *lib.ChatContext) error {
+	if cc.Update.Message == nil {
 		return fmt.Errorf("this is not a message")
 	}
 
-	question := strings.TrimPrefix(update.Message.Text, "/"+c.Command())
+	question := strings.TrimPrefix(cc.Update.Message.Text, "/"+c.Command())
 	question = strings.TrimSuffix(strings.TrimPrefix(question, " "), " ")
 
-	answer, err := c.service.Answer(ctx, question, model)
+	answer, err := c.service.Answer(cc.Ctx, question, model)
 	if err != nil {
 		return err
 	}
-	_, err = sender.Send(tbot.NewMessage(update.FromChat().ID, answer))
+	cc.RespondText(answer)
 	return err
 }
 
@@ -61,12 +60,12 @@ func (c *SetModelCommand) Description() string {
 	return "Set model and backend in json format. Like: `{'model': 'gpt-3.5-turbo', 'backend': 'openai'}` or `{'model': 'meta-llama/Meta-Llama-3.1-405B-Instruct', 'backend': 'deepinfra'}`"
 }
 
-func (c *SetModelCommand) Run(ctx context.Context, sender types.Sender, update tbot.Update) error {
-	if update.Message == nil {
+func (c *SetModelCommand) Run(cc *lib.ChatContext) error {
+	if cc.Update.Message == nil {
 		return fmt.Errorf("this is not a message")
 	}
 
-	input := strings.TrimPrefix(update.Message.Text, "/"+c.Command())
+	input := strings.TrimPrefix(cc.Update.Message.Text, "/"+c.Command())
 	input = strings.TrimSuffix(strings.TrimPrefix(input, " "), " ")
 
 	m := &types.ModelStorage{}
@@ -86,6 +85,6 @@ func (c *SetModelCommand) Run(ctx context.Context, sender types.Sender, update t
 	}
 
 	model = *m
-	_, err := sender.Send(tbot.NewMessage(update.FromChat().ID, fmt.Sprintf("model updated to: %q", model)))
-	return err
+	cc.RespondText(fmt.Sprintf("model updated to: %q", model))
+	return nil
 }
