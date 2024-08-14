@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/olehan/kek"
+	"github.com/rs/zerolog"
 	spotify2 "steplems-bot/persistence/spotify_persistence"
 	telegram2 "steplems-bot/persistence/telegram_persistence"
 	"steplems-bot/types"
@@ -22,17 +22,17 @@ type SpotifyService struct {
 	authenticator    *spotifyauth.Authenticator
 	authService      *SpotifyAuthService
 	port             types.Port
-	log              *kek.Logger
+	log              zerolog.Logger
 }
 
-func NewSpotifyService(port types.Port, authService *SpotifyAuthService, userRepo *spotify2.UserRepository, telegramUserRepo *telegram2.UserRepository, authenticator *spotifyauth.Authenticator, lf *kek.Factory) *SpotifyService {
+func NewSpotifyService(port types.Port, authService *SpotifyAuthService, userRepo *spotify2.UserRepository, telegramUserRepo *telegram2.UserRepository, authenticator *spotifyauth.Authenticator, logger zerolog.Logger) *SpotifyService {
 	return &SpotifyService{
 		port:             port,
 		authService:      authService,
 		spotifyUserRepo:  userRepo,
 		telegramUserRepo: telegramUserRepo,
 		authenticator:    authenticator,
-		log:              lf.NewLogger("SpotifyService")}
+		log:              logger}
 }
 
 func (s *SpotifyService) getSpotifyClient(ctx context.Context, telegramUser telegram2.User) (*sapi.Client, error) {

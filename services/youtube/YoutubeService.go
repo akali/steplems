@@ -2,6 +2,7 @@ package youtube
 
 import (
 	"fmt"
+	"github.com/rs/zerolog"
 	"io"
 	"os"
 	"path"
@@ -11,25 +12,23 @@ import (
 	"steplems-bot/types"
 
 	"github.com/avast/retry-go/v4"
+	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/google/wire"
 	"github.com/hashicorp/go-multierror"
 	"github.com/kkdai/youtube/v2"
-	"github.com/olehan/kek"
-
-	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type YoutubeService struct {
 	client  youtube.Client
-	log     *kek.Logger
 	pattern *regexp.Regexp
+	logger  zerolog.Logger
 }
 
-func NewYoutubeService(client youtube.Client, logFactory *kek.Factory) *YoutubeService {
+func NewYoutubeService(client youtube.Client, logger zerolog.Logger) *YoutubeService {
 	return &YoutubeService{
 		client:  client,
-		log:     logFactory.NewLogger("YoutubeService"),
 		pattern: regexp.MustCompile(ytLinkRegex),
+		logger:  logger,
 	}
 }
 
@@ -118,9 +117,7 @@ func (ys *YoutubeService) downloadPerLink(
 		return "", err
 	}
 
-	ys.log.Succ.PrintTKV(
-		"downloaded short by id {{id}} and saved it into {{path}}",
-		"id", v.ID, "path", filename)
+	ys.logger.Info().Str("id", v.ID).Str("path", filename).Msg("downloaded short")
 
 	return filename, nil
 }
@@ -131,7 +128,7 @@ func (ys *YoutubeService) Download(links []string, folder string) ([]types.Youtu
 	for _, l := range links {
 		v, err := ys.client.GetVideo(l)
 		if err != nil {
-			ys.log.Note.PrintTKV("can't get metadata for link: {{error}}", "error", err)
+			ys.logger.Err(err).Msg("can't get metadata for link")
 
 			return nil, err
 		}
@@ -161,9 +158,7 @@ func (ys *YoutubeService) MessageUpdate(message *tbot.Message) (tbot.VideoConfig
 		return tbot.VideoConfig{}, nil
 	}
 
-	ys.log.Info.PrintTKV(
-		"detected youtube short links of {{length}} length from {{user}}",
-		"length", len(links), "user", message.From.String())
+	ys.logger.Info().Int("length", len(links)).Stringer("user", message.From).Msg("detected youtube short links of {{length}} length from {{user}}")
 
 	folder, err := os.MkdirTemp("/tmp", "yt*")
 	if err != nil {
@@ -172,7 +167,7 @@ func (ys *YoutubeService) MessageUpdate(message *tbot.Message) (tbot.VideoConfig
 
 	yms, err := ys.Download(links, folder)
 	if err != nil {
-		ys.log.Error.Println(err.Error())
+		ys.logger.Err(err).Msg("failed to download")
 		return tbot.VideoConfig{}, fmt.Errorf("failed to process video: %s", err.Error())
 	}
 	var filesErrs *multierror.Error

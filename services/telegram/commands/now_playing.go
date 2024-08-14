@@ -1,10 +1,8 @@
 package commands
 
 import (
-	"context"
-	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"steplems-bot/lib"
 	"steplems-bot/services/spotify"
-	"steplems-bot/types"
 )
 
 type NowPlayingCommand struct {
@@ -15,8 +13,8 @@ func NewNowPlayingCommand(service *spotify.SpotifyService) *NowPlayingCommand {
 	return &NowPlayingCommand{service: service}
 }
 
-func (c *NowPlayingCommand) Run(ctx context.Context, sender types.Sender, update tbot.Update) error {
-	return c.service.NowPlaying(ctx, sender, update)
+func (c *NowPlayingCommand) Run(cc *lib.ChatContext) error {
+	return c.service.NowPlaying(cc.Ctx, cc.Sender, cc.Update)
 }
 
 func (c *NowPlayingCommand) Command() string {

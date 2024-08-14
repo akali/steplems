@@ -16,6 +16,7 @@ import (
 	"steplems-bot/services/chatgpt"
 	"steplems-bot/services/instagram"
 	"steplems-bot/services/spotify"
+	"steplems-bot/services/stablediffusion"
 	"steplems-bot/services/telegram"
 	"steplems-bot/services/telegram/commands"
 	"steplems-bot/services/youtube"
@@ -42,19 +43,20 @@ func NewWireApplication() (WireApplication, error) {
 		return WireApplication{}, err
 	}
 	authenticator := providers.ProvideSpotifyAuth(spotifyClientID, spotifyClientSecret, hostname, port)
-	factory := providers.LoggerFactoryProvider()
-	spotifyAuthService := spotify.NewSpotifyAuthService(port, authenticator, factory)
+	consoleWriter := providers.LoggerOutputProvider()
+	logger := providers.LoggerProvider(consoleWriter)
+	spotifyAuthService := spotify.NewSpotifyAuthService(port, authenticator, logger)
 	databaseConnectionURL, err := providers.ProvideDatabaseConnectionURL()
 	if err != nil {
 		return WireApplication{}, err
 	}
-	db, err := providers.ProvideDatabase(databaseConnectionURL, factory)
+	db, err := providers.ProvideDatabase(databaseConnectionURL, logger)
 	if err != nil {
 		return WireApplication{}, err
 	}
 	userRepository := spotify_persistence.NewSpotifyUserRepository(db)
 	telegram_persistenceUserRepository := telegram_persistence.NewUserRepository(db)
-	spotifyService := spotify.NewSpotifyService(port, spotifyAuthService, userRepository, telegram_persistenceUserRepository, authenticator, factory)
+	spotifyService := spotify.NewSpotifyService(port, spotifyAuthService, userRepository, telegram_persistenceUserRepository, authenticator, logger)
 	telegramBotToken, err := providers.ProvideBotToken()
 	if err != nil {
 		return WireApplication{}, err
@@ -68,7 +70,7 @@ func NewWireApplication() (WireApplication, error) {
 		return WireApplication{}, err
 	}
 	client := providers.ProvideYoutubeClient()
-	youtubeService := youtube.NewYoutubeService(client, factory)
+	youtubeService := youtube.NewYoutubeService(client, logger)
 	goInstaConfigPath, err := providers.ProvideGoInstaConfigPath()
 	if err != nil {
 		return WireApplication{}, err
@@ -94,12 +96,15 @@ func NewWireApplication() (WireApplication, error) {
 	if err != nil {
 		return WireApplication{}, err
 	}
-	deepInfraClient := providers.ProvideDeepInfraClient(deepInfraToken)
-	chatGPTService := chatgpt.New(openaiClient, deepInfraClient, factory)
+	deepInfraOpenAIClient := providers.ProvideDeepInfraOpenAIClient(deepInfraToken)
+	chatGPTService := chatgpt.New(openaiClient, deepInfraOpenAIClient, logger)
 	chatGPTCommand := commands.NewChatGPTCommand(chatGPTService)
 	setModelCommand := commands.NewSetModelCommand()
-	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand, chatGPTCommand, setModelCommand)
-	telegramService := telegram.NewTelegramService(botAPI, youtubeService, instagramService, factory, commandMap)
+	deepinfraClient := providers.ProvideDeepInfraClient(deepInfraToken)
+	stableDiffusionService := stablediffusion.NewStableDiffusionService(deepinfraClient, logger)
+	stableDiffusionCommand := commands.NewStableDiffusionCommand(stableDiffusionService)
+	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand, chatGPTCommand, setModelCommand, stableDiffusionCommand)
+	telegramService := telegram.NewTelegramService(botAPI, youtubeService, instagramService, logger, commandMap)
 	wireApplication := provideWireApplication(spotifyService, spotifyAuthService, telegramService, hostname, userRepository, telegram_persistenceUserRepository)
 	return wireApplication, nil
 }

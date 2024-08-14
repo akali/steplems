@@ -3,7 +3,7 @@ package spotify
 import (
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/olehan/kek"
+	"github.com/rs/zerolog"
 	sapi "github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
 	"log"
@@ -16,15 +16,15 @@ type SpotifyAuthService struct {
 	port           types.Port
 	expectedStates map[string]chan *sapi.Client
 	authenticator  *spotifyauth.Authenticator
-	log            *kek.Logger
+	log            zerolog.Logger
 	eMu            sync.Mutex
 }
 
-func NewSpotifyAuthService(port types.Port, authenticator *spotifyauth.Authenticator, factory *kek.Factory) *SpotifyAuthService {
+func NewSpotifyAuthService(port types.Port, authenticator *spotifyauth.Authenticator, logger zerolog.Logger) *SpotifyAuthService {
 	return &SpotifyAuthService{
 		port:           port,
 		authenticator:  authenticator,
-		log:            factory.NewLogger("SpotifyAuthService"),
+		log:            logger,
 		expectedStates: make(map[string]chan *sapi.Client),
 	}
 }

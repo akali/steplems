@@ -2,7 +2,7 @@ package providers
 
 import (
 	"github.com/google/wire"
-	"github.com/olehan/kek"
+	"github.com/rs/zerolog"
 	"steplems-bot/types"
 
 	"github.com/glebarez/sqlite"
@@ -13,12 +13,10 @@ func ProvideDatabaseConnectionURL() (types.DatabaseConnectionURL, error) {
 	return ProvideEnvironmentVariable[types.DatabaseConnectionURL]("DATABASE")()
 }
 
-func ProvideDatabase(url types.DatabaseConnectionURL, lf *kek.Factory) (*gorm.DB, error) {
-	logger := lf.NewLogger("DBProvider")
-
+func ProvideDatabase(url types.DatabaseConnectionURL, logger zerolog.Logger) (*gorm.DB, error) {
 	result, err := gorm.Open(sqlite.Open(string(url)), &gorm.Config{})
 	if err != nil {
-		logger.Warn.Println("failed to open database", err)
+		logger.Warn().Err(err).Msg("failed to open database")
 		return nil, nil
 	}
 	return result, err

@@ -1,11 +1,10 @@
 package telegram
 
 import (
-	"context"
 	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/google/wire"
+	"steplems-bot/lib"
 	"steplems-bot/services/telegram/commands"
-	"steplems-bot/types"
 )
 
 type CommandMap struct {
@@ -18,6 +17,7 @@ func NewCommandMap(
 	nowPlayingCommand *commands.NowPlayingCommand,
 	chatGPTCommand *commands.ChatGPTCommand,
 	setModelCommand *commands.SetModelCommand,
+	stableDiffusionCommand *commands.StableDiffusionCommand,
 ) *CommandMap {
 	cmdList := []TelegramCommand{
 		helpCommand,
@@ -25,6 +25,7 @@ func NewCommandMap(
 		nowPlayingCommand,
 		chatGPTCommand,
 		setModelCommand,
+		stableDiffusionCommand,
 	}
 	cm := CommandMap{commands: make(map[string]TelegramCommand)}
 	for _, command := range cmdList {
@@ -38,7 +39,7 @@ var CommandMapProvider = wire.NewSet(
 	commands.CommandsProvider)
 
 type TelegramCommand interface {
-	Run(context.Context, types.Sender, tbot.Update) error
+	Run(cc *lib.ChatContext) error
 	Command() string
 	Description() string
 }
