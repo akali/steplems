@@ -96,7 +96,7 @@ func (t *TelegramService) OnUpdate(ctx context.Context, update tbot.Update) erro
 		if !ok {
 			return nil
 		}
-		cc := lib.NewChatContext(ctx, t, update)
+		cc := lib.NewChatContext(ctx, t, update, t.api)
 		err := command.Run(cc)
 		if cc.Err != nil {
 			t.logger.Err(err).Msg("")
