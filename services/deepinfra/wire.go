@@ -1,4 +1,4 @@
-package stablediffusion
+package deepinfra
 
 import "github.com/google/wire"
 

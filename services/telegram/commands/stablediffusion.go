@@ -2,14 +2,14 @@ package commands
 
 import (
 	"steplems-bot/lib"
-	"steplems-bot/services/stablediffusion"
+	"steplems-bot/services/deepinfra"
 )
 
 type StableDiffusionCommand struct {
-	service *stablediffusion.StableDiffusionService
+	service *deepinfra.DeepInfraService
 }
 
-func NewStableDiffusionCommand(service *stablediffusion.StableDiffusionService) *StableDiffusionCommand {
+func NewStableDiffusionCommand(service *deepinfra.DeepInfraService) *StableDiffusionCommand {
 	return &StableDiffusionCommand{
 		service: service,
 	}
@@ -26,9 +26,9 @@ func (h *StableDiffusionCommand) Run(cc *lib.ChatContext) error {
 }
 
 func (h *StableDiffusionCommand) Command() string {
-	return "stablediffusion"
+	return "deepinfra"
 }
 
 func (h *StableDiffusionCommand) Description() string {
-	return "Generate image by prompt. Usage /stablediffusion An astronaut riding a rainbow unicorn."
+	return "Generate image by prompt. Usage /deepinfra An astronaut riding a rainbow unicorn."
 }

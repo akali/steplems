@@ -3,9 +3,9 @@ package services
 import (
 	"github.com/google/wire"
 	"steplems-bot/services/chatgpt"
+	"steplems-bot/services/deepinfra"
 	"steplems-bot/services/instagram"
 	"steplems-bot/services/spotify"
-	"steplems-bot/services/stablediffusion"
 	"steplems-bot/services/telegram"
 	"steplems-bot/services/youtube"
 )
@@ -16,5 +16,5 @@ var ServicesSet = wire.NewSet(
 	telegram.TelegramServiceSet,
 	chatgpt.ChatGPTServiceProviderSet,
 	instagram.InstagramServiceProviderSet,
-	stablediffusion.StableDiffusionSet,
+	deepinfra.StableDiffusionSet,
 )

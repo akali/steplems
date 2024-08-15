@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -30,6 +33,24 @@ type Request struct {
 // Input represents the input schema for the API
 type Input struct {
 	Prompt *string `json:"prompt,omitempty"`
+}
+
+// VoiceToTextResponse represents the response structure for the voice-to-text API.
+type VoiceToTextResponse struct {
+	Text            string          `json:"text"`
+	Segments        []Segment       `json:"segments"`
+	Language        string          `json:"language"`
+	InputLengthMs   int             `json:"input_length_ms"`
+	RequestID       *string         `json:"request_id,omitempty"`
+	InferenceStatus InferenceStatus `json:"inference_status"`
+}
+
+// Segment represents each segment in the voice-to-text response.
+type Segment struct {
+	ID    int     `json:"id"`
+	Text  string  `json:"text"`
+	Start float64 `json:"start"`
+	End   float64 `json:"end"`
 }
 
 // InferenceStatus contains details about the inference process
@@ -114,4 +135,57 @@ func (c *Client) GenerateImage(input *Request) (*APIResponse, error) {
 	}
 
 	return &apiResponse, nil
+}
+
+// VoiceToText sends the audio file to the DeepInfra API and returns the transcription result.
+func (c *Client) VoiceToText(audioFilePath string) (*VoiceToTextResponse, error) {
+	file, err := os.Open(audioFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open audio file: %w", err)
+	}
+	defer file.Close()
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	part, err := writer.CreateFormFile("audio", audioFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create form file: %w", err)
+	}
+
+	_, err = io.Copy(part, file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy file data: %w", err)
+	}
+
+	err = writer.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed to close writer: %w", err)
+	}
+	url := fmt.Sprintf("%s/inference/openai/whisper-large-v3", c.BaseURL)
+	req, err := http.NewRequest("POST", url, body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "bearer "+c.APIToken)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var response VoiceToTextResponse
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &response, nil
 }
