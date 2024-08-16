@@ -17,7 +17,7 @@ func NewCommandMap(
 	nowPlayingCommand *commands.NowPlayingCommand,
 	chatGPTCommand *commands.ChatGPTCommand,
 	setModelCommand *commands.SetModelCommand,
-	stableDiffusionCommand *commands.StableDiffusionCommand,
+	stableDiffusionCommand *commands.ImGenCommand,
 	transcribeCommand *commands.TranscribeCommand,
 ) *CommandMap {
 	cmdList := []TelegramCommand{

@@ -103,8 +103,8 @@ type APIResponse struct {
 }
 
 // GenerateImage sends a request to the DeepInfra API to generate an image
-func (c *Client) GenerateImage(input *Request) (*APIResponse, error) {
-	url := fmt.Sprintf("%s/inference/stability-ai/sdxl", c.BaseURL) // Replace with actual endpoint
+func (c *Client) GenerateImage(input *Request, model string) (*APIResponse, error) {
+	url := fmt.Sprintf("%s/inference/%s", c.BaseURL, model) // Replace with actual endpoint
 
 	body, err := json.Marshal(input)
 	if err != nil {

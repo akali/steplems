@@ -1,23 +1,24 @@
 package commands
 
 import (
+	"fmt"
 	"steplems-bot/lib"
 	"steplems-bot/services/deepinfra"
 )
 
-type StableDiffusionCommand struct {
+type ImGenCommand struct {
 	service *deepinfra.DeepInfraService
 }
 
-func NewStableDiffusionCommand(service *deepinfra.DeepInfraService) *StableDiffusionCommand {
-	return &StableDiffusionCommand{
+func NewStableDiffusionCommand(service *deepinfra.DeepInfraService) *ImGenCommand {
+	return &ImGenCommand{
 		service: service,
 	}
 }
 
-func (h *StableDiffusionCommand) Run(cc *lib.ChatContext) error {
+func (h *ImGenCommand) Run(cc *lib.ChatContext) error {
 	prompt := cc.Text()
-	url, err := h.service.GenerateImage(cc.Ctx, prompt)
+	url, err := h.service.GenerateImage(cc.Ctx, prompt, model.ImGenModel)
 	if err != nil {
 		return err
 	}
@@ -25,10 +26,10 @@ func (h *StableDiffusionCommand) Run(cc *lib.ChatContext) error {
 	return nil
 }
 
-func (h *StableDiffusionCommand) Command() string {
-	return "deepinfra"
+func (h *ImGenCommand) Command() string {
+	return "imgen"
 }
 
-func (h *StableDiffusionCommand) Description() string {
-	return "Generate image by prompt. Usage /deepinfra An astronaut riding a rainbow unicorn."
+func (h *ImGenCommand) Description() string {
+	return fmt.Sprintf("Generate image by prompt. Usage /%s An astronaut riding a rainbow unicorn.", h.Command())
 }

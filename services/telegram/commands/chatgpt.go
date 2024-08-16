@@ -10,9 +10,14 @@ import (
 	"strings"
 )
 
-var DefaultModel = types.ModelStorage{Model: openai.GPT3Dot5Turbo, Backend: "openai"}
-var DeepInfraDefaultModel = types.ModelStorage{Model: "meta-llama/Meta-Llama-3.1-405B-Instruct", Backend: "deepinfra"}
+var DefaultModel = types.ModelStorage{Model: openai.GPT3Dot5Turbo, Backend: "openai", ImGenModel: "stablediffusion"}
+var DeepInfraDefaultModel = types.ModelStorage{Model: "meta-llama/Meta-Llama-3.1-405B-Instruct", Backend: "deepinfra", ImGenModel: "stablediffusion"}
 var model = DefaultModel
+
+var (
+	imGenSD   = "stablediffusion"
+	imGenFlux = "flux"
+)
 
 type ChatGPTCommand struct {
 	service *chatgpt.ChatGPTService
@@ -57,7 +62,7 @@ func (c *SetModelCommand) Command() string {
 }
 
 func (c *SetModelCommand) Description() string {
-	return "Set model and backend in json format. Like: `{'model': 'gpt-3.5-turbo', 'backend': 'openai'}` or `{'model': 'meta-llama/Meta-Llama-3.1-405B-Instruct', 'backend': 'deepinfra'}`"
+	return "Set model and backend in json format. Like: `{'model': 'gpt-3.5-turbo', 'backend': 'openai', 'imgenmodel': 'stablediffusion'}`"
 }
 
 func (c *SetModelCommand) Run(cc *lib.ChatContext) error {
@@ -70,17 +75,31 @@ func (c *SetModelCommand) Run(cc *lib.ChatContext) error {
 
 	m := &types.ModelStorage{}
 
-	if input == "openai" {
+	switch input {
+	case "openai":
+		oldImGen := model.ImGenModel
 		m = &DefaultModel
-	} else if input == "deepinfra" {
+		m.ImGenModel = oldImGen
+	case "deepinfra":
+		oldImGen := model.ImGenModel
 		m = &DeepInfraDefaultModel
-	} else {
+		m.ImGenModel = oldImGen
+	case imGenSD:
+		m = &model
+		m.ImGenModel = imGenSD
+	case imGenFlux:
+		m = &model
+		m.ImGenModel = imGenSD
+	default:
 		if err := json.Unmarshal([]byte(input), m); err != nil {
 			return err
 		}
 
 		if m.Backend != "openai" && m.Backend != "deepinfra" {
-			return fmt.Errorf("invalid backend format, must by `openai` or `deepinfra`, got %q", m.Backend)
+			return fmt.Errorf("invalid backend format, must be `openai` or `deepinfra`, got %q", m.Backend)
+		}
+		if m.ImGenModel != imGenFlux && m.ImGenModel != imGenSD {
+			return fmt.Errorf("invalid imgen model format, must be `stablediffusion` or `flux`, got %q", m.ImGenModel)
 		}
 	}
 
