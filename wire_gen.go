@@ -102,9 +102,9 @@ func NewWireApplication() (WireApplication, error) {
 	setModelCommand := commands.NewSetModelCommand()
 	deepinfraClient := providers.ProvideDeepInfraClient(deepInfraToken)
 	deepInfraService := deepinfra.NewStableDiffusionService(deepinfraClient, logger)
-	stableDiffusionCommand := commands.NewStableDiffusionCommand(deepInfraService)
+	imGenCommand := commands.NewImGenCommand(deepInfraService)
 	transcribeCommand := commands.NewTranscribeCommand(deepInfraService)
-	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand, chatGPTCommand, setModelCommand, stableDiffusionCommand, transcribeCommand)
+	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand, chatGPTCommand, setModelCommand, imGenCommand, transcribeCommand)
 	telegramService := telegram.NewTelegramService(botAPI, youtubeService, instagramService, logger, commandMap)
 	wireApplication := provideWireApplication(spotifyService, spotifyAuthService, telegramService, hostname, userRepository, telegram_persistenceUserRepository)
 	return wireApplication, nil

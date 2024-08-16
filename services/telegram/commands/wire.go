@@ -8,5 +8,5 @@ var CommandsProvider = wire.NewSet(
 	NewNowPlayingCommand,
 	NewChatGPTCommand,
 	NewSetModelCommand,
-	NewStableDiffusionCommand,
+	NewImGenCommand,
 	NewTranscribeCommand)

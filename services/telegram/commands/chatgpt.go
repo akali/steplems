@@ -89,7 +89,7 @@ func (c *SetModelCommand) Run(cc *lib.ChatContext) error {
 		m.ImGenModel = imGenSD
 	case imGenFlux:
 		m = &model
-		m.ImGenModel = imGenSD
+		m.ImGenModel = imGenFlux
 	default:
 		if err := json.Unmarshal([]byte(input), m); err != nil {
 			return err

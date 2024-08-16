@@ -31,17 +31,20 @@ func NewChatContext(ctx context.Context, sender types.Sender, update tbot.Update
 	}
 }
 
+func (cc *ChatContext) send(c tbot.Chattable) {
+	_, err := cc.Sender.Send(c)
+	cc.Err = multierror.Append(cc.Err, err)
+}
+
 func (c *ChatContext) RespondText(message string) {
-	_, err := c.Sender.Send(tbot.NewMessage(c.Update.FromChat().ID, message))
-	c.Err = multierror.Append(c.Err, err)
+	c.send(tbot.NewMessage(c.Update.FromChat().ID, message))
 }
 
 func (c *ChatContext) RespondImageURL(url string) {
 	file := tbot.FileURL(url)
 	msg := tbot.NewPhoto(c.Update.FromChat().ID, file)
 	msg.ReplyToMessageID = c.Update.Message.MessageID
-	_, err := c.Sender.Send(msg)
-	c.Err = multierror.Append(c.Err, err)
+	c.send(msg)
 }
 
 func (cc *ChatContext) Text() string {
@@ -78,4 +81,13 @@ func (cc *ChatContext) GetFile(fileId string) ([]byte, error) {
 	}
 
 	return io.ReadAll(resp.Body)
+}
+
+func (cc *ChatContext) RespondImage(b []byte) {
+	photoMessage := tbot.NewPhoto(cc.Update.FromChat().ID, tbot.FileBytes{
+		Name:  "flux.png",
+		Bytes: b,
+	})
+	photoMessage.ReplyToMessageID = cc.Update.Message.MessageID
+	cc.send(photoMessage)
 }

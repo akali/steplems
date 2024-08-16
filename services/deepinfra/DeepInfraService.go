@@ -16,18 +16,24 @@ func NewStableDiffusionService(client *deepinfra.Client, logger zerolog.Logger) 
 	return &DeepInfraService{client: client, logger: logger}
 }
 
-func (s *DeepInfraService) GenerateImage(ctx context.Context, prompt string, model string) (string, error) {
-	modelPath := "stability-ai/sdxl"
-	if model == "flux" {
-		modelPath = "black-forest-labs/FLUX-1-schnell"
+func (s *DeepInfraService) GenerateImageFlux(ctx context.Context, prompt string) ([]byte, error) {
+	fluxResp, err := s.client.GenerateImageFlux(prompt)
+	if err != nil {
+		return nil, err
 	}
-	resp, err := s.client.GenerateImage(
+	if len(fluxResp.Images) == 0 {
+		return nil, fmt.Errorf("failed to generate image: no images returned")
+	}
+	return []byte(fluxResp.Images[0]), nil
+}
+
+func (s *DeepInfraService) GenerateImage(ctx context.Context, prompt string) (string, error) {
+	resp, err := s.client.GenerateImageStableDiffusion(
 		&deepinfra.Request{
 			Input: &deepinfra.Input{
 				Prompt: &prompt,
 			},
 		},
-		modelPath,
 	)
 	if err != nil {
 		return "", err
