@@ -11,9 +11,7 @@ func ProvideDeepInfraToken() (types.DeepInfraToken, error) {
 	return ProvideEnvironmentVariable[types.DeepInfraToken]("DEEP_INFRA_TOKEN")()
 }
 
-func ProvideDeepInfraClient(token types.DeepInfraToken) *deepinfra.Client {
-	return deepinfra.NewClient(string(token))
-}
+var ProvideDeepInfraClient = deepinfra.NewClient
 
 func ProvideDeepInfraOpenAIClient(token types.DeepInfraToken) *types.DeepInfraOpenAIClient {
 	config := openai.DefaultConfig(string(token))

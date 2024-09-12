@@ -2,7 +2,6 @@ package deepinfra
 
 import (
 	"context"
-	"fmt"
 	"github.com/rs/zerolog"
 	"steplems-bot/lib/deepinfra"
 )
@@ -16,32 +15,20 @@ func NewStableDiffusionService(client *deepinfra.Client, logger zerolog.Logger) 
 	return &DeepInfraService{client: client, logger: logger}
 }
 
-func (s *DeepInfraService) GenerateImageFlux(ctx context.Context, prompt string) ([]byte, error) {
-	fluxResp, err := s.client.GenerateImageFlux(prompt)
+func (s *DeepInfraService) GenerateImageFlux(ctx context.Context, prompt string) ([][]byte, error) {
+	resp, err := s.client.CreateImage(ctx, deepinfra.WithPrompt(prompt), deepinfra.WithModel(deepinfra.FluxDev))
 	if err != nil {
 		return nil, err
 	}
-	if len(fluxResp.Images) == 0 {
-		return nil, fmt.Errorf("failed to generate image: no images returned")
-	}
-	return []byte(fluxResp.Images[0]), nil
+	return resp.ImageBytes(), nil
 }
 
-func (s *DeepInfraService) GenerateImage(ctx context.Context, prompt string) (string, error) {
-	resp, err := s.client.GenerateImageStableDiffusion(
-		&deepinfra.Request{
-			Input: &deepinfra.Input{
-				Prompt: &prompt,
-			},
-		},
-	)
+func (s *DeepInfraService) GenerateImage(ctx context.Context, prompt string) ([]string, error) {
+	resp, err := s.client.CreateImage(ctx, deepinfra.WithPrompt(prompt), deepinfra.WithModel(deepinfra.StabilitySDXL))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	if resp.Output == nil || len(resp.Output) == 0 {
-		return "", fmt.Errorf("got empty response")
-	}
-	return resp.Output[0], nil
+	return resp.Urls(), err
 }
 
 func (s *DeepInfraService) VoiceToText(audioFilePath string) (string, error) {

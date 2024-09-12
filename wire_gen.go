@@ -10,11 +10,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"steplems-bot/lib/deepinfra"
 	"steplems-bot/persistence/spotify_persistence"
 	"steplems-bot/persistence/telegram_persistence"
 	"steplems-bot/providers"
 	"steplems-bot/services/chatgpt"
-	"steplems-bot/services/deepinfra"
+	deepinfra2 "steplems-bot/services/deepinfra"
 	"steplems-bot/services/instagram"
 	"steplems-bot/services/spotify"
 	"steplems-bot/services/telegram"
@@ -100,8 +101,8 @@ func NewWireApplication() (WireApplication, error) {
 	chatGPTService := chatgpt.New(openaiClient, deepInfraOpenAIClient, logger)
 	chatGPTCommand := commands.NewChatGPTCommand(chatGPTService)
 	setModelCommand := commands.NewSetModelCommand()
-	deepinfraClient := providers.ProvideDeepInfraClient(deepInfraToken)
-	deepInfraService := deepinfra.NewStableDiffusionService(deepinfraClient, logger)
+	deepinfraClient := deepinfra.NewClient(deepInfraToken, logger)
+	deepInfraService := deepinfra2.NewStableDiffusionService(deepinfraClient, logger)
 	imGenCommand := commands.NewImGenCommand(deepInfraService)
 	transcribeCommand := commands.NewTranscribeCommand(deepInfraService)
 	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand, chatGPTCommand, setModelCommand, imGenCommand, transcribeCommand)

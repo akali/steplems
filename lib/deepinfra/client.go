@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/rs/zerolog"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
+	"steplems-bot/types"
 	"time"
 )
 
@@ -15,14 +17,16 @@ type Client struct {
 	BaseURL    string
 	APIToken   string
 	HTTPClient *http.Client
+	logger     zerolog.Logger
 }
 
 // NewClient creates a new DeepInfra API client
-func NewClient(apiToken string) *Client {
+func NewClient(apiToken types.DeepInfraToken, logger zerolog.Logger) *Client {
 	return &Client{
 		BaseURL:    "https://api.deepinfra.com/v1",
-		APIToken:   apiToken,
+		APIToken:   string(apiToken),
 		HTTPClient: &http.Client{},
+		logger:     logger,
 	}
 }
 
@@ -108,87 +112,6 @@ type FluxResponse struct {
 	Seed                int             `json:"seed"`
 	RequestID           *string         `json:"request_id"` // using pointer for nullable value
 	InferenceStatus     InferenceStatus `json:"inference_status"`
-}
-
-// GenerateImageStableDiffusion sends a request to the DeepInfra API to generate an image
-func (c *Client) GenerateImageStableDiffusion(input *Request) (*APIResponse, error) {
-	url := fmt.Sprintf("%s/inference/stability-ai/sdxl", c.BaseURL) // Replace with actual endpoint
-
-	body, err := json.Marshal(input)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.APIToken))
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to generate image: status code %d", resp.StatusCode)
-	}
-
-	var apiResponse APIResponse
-	if err := json.NewDecoder(resp.Body).Decode(&apiResponse); err != nil {
-		return nil, err
-	}
-
-	return &apiResponse, nil
-}
-
-// GenerateImageFlux sends a request to the DeepInfra API to generate an image with Flux Schnell.
-func (c *Client) GenerateImageFlux(prompt string) (*FluxResponse, error) {
-	url := fmt.Sprintf("%s/inference/black-forest-labs/FLUX-1-schnell", c.BaseURL) // Replace with actual endpoint
-
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-
-	fw, err := writer.CreateFormField("prompt")
-	if err != nil {
-		return nil, err
-	}
-	_, err = fw.Write([]byte(prompt))
-	if err != nil {
-		return nil, err
-	}
-
-	err = writer.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", url, &body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.APIToken))
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to generate image: status code %d", resp.StatusCode)
-	}
-
-	var fluxResp FluxResponse
-	if err := json.NewDecoder(resp.Body).Decode(&fluxResp); err != nil {
-		return nil, err
-	}
-	return &fluxResp, nil
 }
 
 // VoiceToText sends the audio file to the DeepInfra API and returns the transcription result.
