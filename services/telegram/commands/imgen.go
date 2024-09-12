@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"github.com/vincent-petithory/dataurl"
 	"steplems-bot/lib"
 	"steplems-bot/services/deepinfra"
 )
@@ -20,23 +19,19 @@ func NewImGenCommand(service *deepinfra.DeepInfraService) *ImGenCommand {
 func (h *ImGenCommand) Run(cc *lib.ChatContext) error {
 	prompt := cc.Text()
 	if model.ImGenModel == "flux" {
-		b, err := h.service.GenerateImageFlux(cc.Ctx, prompt)
+		images, err := h.service.GenerateImageFlux(cc.Ctx, prompt)
 		if err != nil {
 			return err
 		}
-		dataURL, err := dataurl.DecodeString(string(b))
-		if err != nil {
-			return err
-		}
-		cc.RespondImage(dataURL.Data)
+		cc.RespondImage(images[0])
 		return nil
 	}
 	if model.ImGenModel == "stablediffusion" {
-		url, err := h.service.GenerateImage(cc.Ctx, prompt)
+		urls, err := h.service.GenerateImage(cc.Ctx, prompt)
 		if err != nil {
 			return err
 		}
-		cc.RespondImageURL(url)
+		cc.RespondImageURL(urls[0])
 		return nil
 	}
 
