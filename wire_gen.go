@@ -99,7 +99,8 @@ func NewWireApplication() (WireApplication, error) {
 	}
 	deepInfraOpenAIClient := providers.ProvideDeepInfraOpenAIClient(deepInfraToken)
 	chatGPTService := chatgpt.New(openaiClient, deepInfraOpenAIClient, logger)
-	chatGPTCommand := commands.NewChatGPTCommand(chatGPTService)
+	messageRepository := telegram_persistence.NewMessageRepository(db)
+	chatGPTCommand := commands.NewChatGPTCommand(chatGPTService, messageRepository, telegram_persistenceUserRepository)
 	setModelCommand := commands.NewSetModelCommand()
 	deepinfraClient := deepinfra.NewClient(deepInfraToken, logger)
 	deepInfraService := deepinfra2.NewStableDiffusionService(deepinfraClient, logger)
@@ -107,7 +108,7 @@ func NewWireApplication() (WireApplication, error) {
 	transcribeCommand := commands.NewTranscribeCommand(deepInfraService)
 	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand, chatGPTCommand, setModelCommand, imGenCommand, transcribeCommand)
 	telegramService := telegram.NewTelegramService(botAPI, youtubeService, instagramService, logger, commandMap)
-	wireApplication := provideWireApplication(spotifyService, spotifyAuthService, telegramService, hostname, userRepository, telegram_persistenceUserRepository)
+	wireApplication := provideWireApplication(spotifyService, spotifyAuthService, telegramService, hostname, userRepository, telegram_persistenceUserRepository, messageRepository)
 	return wireApplication, nil
 }
 
@@ -117,18 +118,20 @@ type WireApplication struct {
 	telegramService *telegram.TelegramService
 	sUserRepo       *spotify_persistence.UserRepository
 	tUserRepo       *telegram_persistence.UserRepository
+	messageRepo     *telegram_persistence.MessageRepository
 	spotifyService  *spotify.SpotifyService
 	hostname        types.Hostname
 	authService     *spotify.SpotifyAuthService
 }
 
-func provideWireApplication(spotifyService *spotify.SpotifyService, authService *spotify.SpotifyAuthService, telegramService *telegram.TelegramService, hostname types.Hostname, sUserRepo *spotify_persistence.UserRepository, tUserRepo *telegram_persistence.UserRepository) WireApplication {
+func provideWireApplication(spotifyService *spotify.SpotifyService, authService *spotify.SpotifyAuthService, telegramService *telegram.TelegramService, hostname types.Hostname, sUserRepo *spotify_persistence.UserRepository, tUserRepo *telegram_persistence.UserRepository, messageRepository *telegram_persistence.MessageRepository) WireApplication {
 	return WireApplication{
 		spotifyService:  spotifyService,
 		authService:     authService,
 		telegramService: telegramService,
 		sUserRepo:       sUserRepo,
 		tUserRepo:       tUserRepo,
+		messageRepo:     messageRepository,
 		hostname:        hostname}
 }
 
@@ -151,6 +154,7 @@ func (w WireApplication) migrate() error {
 	migratables := []types.MigrationRunner{
 		w.sUserRepo,
 		w.tUserRepo,
+		w.messageRepo,
 	}
 
 	for _, m := range migratables {

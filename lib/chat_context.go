@@ -31,13 +31,20 @@ func NewChatContext(ctx context.Context, sender types.Sender, update tbot.Update
 	}
 }
 
-func (cc *ChatContext) send(c tbot.Chattable) {
-	_, err := cc.Sender.Send(c)
+func (cc *ChatContext) send(c tbot.Chattable) tbot.Message {
+	message, err := cc.Sender.Send(c)
 	cc.Err = multierror.Append(cc.Err, err)
+	return message
 }
 
-func (c *ChatContext) RespondText(message string) {
-	c.send(tbot.NewMessage(c.Update.FromChat().ID, message))
+func (c *ChatContext) RespondText(message string) tbot.Message {
+	return c.send(tbot.NewMessage(c.Update.FromChat().ID, message))
+}
+
+func (c *ChatContext) ReplyText(message string) tbot.Message {
+	msg := tbot.NewMessage(c.Update.FromChat().ID, message)
+	msg.ReplyToMessageID = c.Update.Message.MessageID
+	return c.send(msg)
 }
 
 func (c *ChatContext) RespondImageURL(url string) {

@@ -3,12 +3,44 @@ package telegram
 import (
 	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/google/wire"
+	"github.com/rs/zerolog/log"
 	"steplems-bot/lib"
 	"steplems-bot/services/telegram/commands"
+	"strings"
 )
 
 type CommandMap struct {
-	commands map[string]TelegramCommand
+	commands       map[string]TelegramCommand
+	chatGPTCommand *commands.ChatGPTCommand
+}
+
+func (m CommandMap) Get(message tbot.Message) (TelegramCommand, bool) {
+	if message.IsCommand() {
+		if command, ok := m.commands[message.Command()]; ok {
+			return command, ok
+		}
+		return nil, false
+	}
+	if m.chatGPTCommand.Match(message) {
+		return m.chatGPTCommand, true
+	}
+	return nil, false
+}
+
+func (m CommandMap) Match(message tbot.Message) bool {
+	match := m.chatGPTCommand.Match(message)
+	log.Debug().Bool("match", match).Msg("")
+	return match
+}
+
+func (m CommandMap) ApiCommands() []tbot.BotCommand {
+	var cmds []tbot.BotCommand
+	for _, command := range m.commands {
+		cmd := ToAPITelegramCommand(command)
+		cmd.Command = strings.TrimPrefix(strings.Split(cmd.Command, " ")[0], "/")
+		cmds = append(cmds, cmd)
+	}
+	return cmds
 }
 
 func NewCommandMap(
@@ -33,6 +65,7 @@ func NewCommandMap(
 	for _, command := range cmdList {
 		cm.commands[command.Command()] = command
 	}
+	cm.chatGPTCommand = chatGPTCommand
 	return &cm
 }
 
