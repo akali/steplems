@@ -3,8 +3,12 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/rs/zerolog/log"
 	"github.com/sashabaranov/go-openai"
+	"slices"
 	"steplems-bot/lib"
+	"steplems-bot/persistence/telegram_persistence"
 	"steplems-bot/services/chatgpt"
 	"steplems-bot/types"
 	"strings"
@@ -21,11 +25,15 @@ var (
 
 type ChatGPTCommand struct {
 	service *chatgpt.ChatGPTService
+	repo    *telegram_persistence.MessageRepository
+	uRepo   *telegram_persistence.UserRepository
 }
 
-func NewChatGPTCommand(service *chatgpt.ChatGPTService) *ChatGPTCommand {
+func NewChatGPTCommand(service *chatgpt.ChatGPTService, repo *telegram_persistence.MessageRepository, uRepo *telegram_persistence.UserRepository) *ChatGPTCommand {
 	return &ChatGPTCommand{
 		service: service,
+		repo:    repo,
+		uRepo:   uRepo,
 	}
 }
 
@@ -34,14 +42,93 @@ func (c *ChatGPTCommand) Run(cc *lib.ChatContext) error {
 		return fmt.Errorf("this is not a message")
 	}
 
+	if !cc.Update.Message.IsCommand() {
+		return c.Reply(cc)
+	}
+
+	message := telegram_persistence.FromTelegramMessage(cc.Update.Message)
+	if err := c.repo.Create(message); err != nil {
+		return fmt.Errorf("failed to save message in database: %w", err)
+	}
+
 	question := strings.TrimPrefix(cc.Update.Message.Text, "/"+c.Command())
 	question = strings.TrimSuffix(strings.TrimPrefix(question, " "), " ")
 
-	answer, err := c.service.Answer(cc.Ctx, question, model)
+	answer, err := c.service.Answer(cc.Ctx, []openai.ChatCompletionMessage{{
+		Role:    openai.ChatMessageRoleUser,
+		Content: question,
+	}}, model)
 	if err != nil {
 		return err
 	}
-	cc.RespondText(answer)
+	replyMessage := cc.ReplyText(answer)
+	telegramReplyMessage := telegram_persistence.FromTelegramMessage(&replyMessage)
+	log.Debug().Interface("reply_message", replyMessage).Msg("reply")
+	_, err = c.uRepo.GetOrCreate(telegramReplyMessage.FromUserID.Int64, telegram_persistence.FromExternalTelegramUser(replyMessage.From, replyMessage.Chat))
+	if err != nil {
+		log.Err(err).Send()
+		return err
+	}
+	if err := c.repo.Create(telegramReplyMessage); err != nil {
+		return err
+	}
+	return err
+}
+
+func fromThread(thread []telegram_persistence.Message) []openai.ChatCompletionMessage {
+	var result []openai.ChatCompletionMessage
+	for _, message := range thread {
+		chatCompletionMessage := openai.ChatCompletionMessage{
+			Content: message.Text,
+		}
+		if message.FromUser.IsBot {
+			chatCompletionMessage.Role = openai.ChatMessageRoleAssistant
+		} else {
+			chatCompletionMessage.Role = openai.ChatMessageRoleUser
+		}
+		result = append(result, chatCompletionMessage)
+	}
+	slices.Reverse(result)
+	return result
+}
+
+func (c *ChatGPTCommand) Reply(cc *lib.ChatContext) error {
+	if cc.Update.Message == nil {
+		return fmt.Errorf("this is not a message")
+	}
+
+	if cc.Update.Message.ReplyToMessage == nil {
+		return fmt.Errorf("no reply in message")
+	}
+
+	message := telegram_persistence.FromTelegramMessage(cc.Update.Message)
+	if err := c.repo.Create(message); err != nil {
+		return fmt.Errorf("failed to save message in database: %w", err)
+	}
+	message, err := c.repo.Find(message)
+	if err != nil {
+		return fmt.Errorf("failed to find message: %w", err)
+	}
+	thread, err := c.repo.MessageThread(message)
+	if err != nil {
+		return fmt.Errorf("failed to fetch thread: %w", err)
+	}
+	chatCompletionThread := fromThread(thread)
+	answer, err := c.service.Answer(cc.Ctx, chatCompletionThread, model)
+	if err != nil {
+		return err
+	}
+	replyMessage := cc.ReplyText(answer)
+	telegramReplyMessage := telegram_persistence.FromTelegramMessage(&replyMessage)
+
+	_, err = c.uRepo.GetOrCreate(telegramReplyMessage.FromUserID.Int64, telegram_persistence.FromExternalTelegramUser(replyMessage.From, replyMessage.Chat))
+	if err != nil {
+		log.Err(err).Send()
+		return err
+	}
+	if err := c.repo.Create(telegramReplyMessage); err != nil {
+		return err
+	}
 	return err
 }
 
@@ -51,6 +138,27 @@ func (c *ChatGPTCommand) Command() string {
 
 func (c *ChatGPTCommand) Description() string {
 	return "Ask ChatGPT, anything!"
+}
+
+func (c *ChatGPTCommand) Match(message tbot.Message) bool {
+	if message.ReplyToMessage == nil {
+		log.Debug().Msg("Not a reply to a message")
+		return false
+	}
+	reply := message.ReplyToMessage
+	tMessage := telegram_persistence.FromTelegramMessage(reply)
+	tMessage, err := c.repo.Find(tMessage)
+	if err != nil {
+		log.Err(err).Send()
+		return false
+	}
+	thread, err := c.repo.MessageThread(tMessage)
+	if err != nil {
+		log.Logger.Err(err).Send()
+		return false
+	}
+	firstMessage := thread[len(thread)-1]
+	return strings.HasPrefix(firstMessage.Text, "/"+c.Command())
 }
 
 type SetModelCommand struct{}

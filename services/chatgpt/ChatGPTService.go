@@ -22,13 +22,11 @@ func New(client *openai.Client, deepInfraClient *types.DeepInfraOpenAIClient, lo
 	}
 }
 
-func (c *ChatGPTService) deepInfraAnswer(ctx context.Context, question string, model types.ModelStorage) (string, error) {
+func (c *ChatGPTService) deepInfraAnswer(ctx context.Context, thread []openai.ChatCompletionMessage, model types.ModelStorage) (string, error) {
 	client := (*openai.Client)(c.deepInfraClient)
 	resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model: model.Model,
-		Messages: []openai.ChatCompletionMessage{{
-			Role:    openai.ChatMessageRoleUser,
-			Content: question}},
+		Model:    model.Model,
+		Messages: thread,
 	})
 
 	if err != nil {
@@ -42,15 +40,13 @@ func (c *ChatGPTService) deepInfraAnswer(ctx context.Context, question string, m
 	return resp.Choices[0].Message.Content, nil
 }
 
-func (c *ChatGPTService) Answer(ctx context.Context, question string, model types.ModelStorage) (string, error) {
+func (c *ChatGPTService) Answer(ctx context.Context, thread []openai.ChatCompletionMessage, model types.ModelStorage) (string, error) {
 	if model.Backend == "deepinfra" {
-		return c.deepInfraAnswer(ctx, question, model)
+		return c.deepInfraAnswer(ctx, thread, model)
 	}
 	resp, err := c.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model: openai.GPT3Dot5Turbo,
-		Messages: []openai.ChatCompletionMessage{{
-			Role:    openai.ChatMessageRoleAssistant,
-			Content: question}},
+		Model:    openai.GPT3Dot5Turbo,
+		Messages: thread,
 	})
 
 	if err != nil {

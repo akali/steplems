@@ -3,13 +3,11 @@ package telegram
 import (
 	"context"
 	"fmt"
+	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hashicorp/go-multierror"
 	"github.com/rs/zerolog"
 	"steplems-bot/lib"
 	"steplems-bot/services/instagram"
-	"strings"
-
-	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"steplems-bot/services/youtube"
 )
 
@@ -20,7 +18,7 @@ type TelegramService struct {
 	ytService *youtube.YoutubeService
 	igService *instagram.InstagramService
 	logger    zerolog.Logger
-	commands  map[string]TelegramCommand
+	commands  *CommandMap
 }
 
 func NewTelegramService(api *tbot.BotAPI,
@@ -32,7 +30,7 @@ func NewTelegramService(api *tbot.BotAPI,
 		ytService: ytService,
 		igService: igService,
 		logger:    logger,
-		commands:  cm.commands,
+		commands:  cm,
 	}
 }
 
@@ -91,8 +89,8 @@ func (t *TelegramService) OnUpdate(ctx context.Context, update tbot.Update) erro
 			}
 		}
 	}
-	if update.Message.IsCommand() {
-		command, ok := t.commands[update.Message.Command()]
+	if update.Message.IsCommand() || t.commands.Match(*update.Message) {
+		command, ok := t.commands.Get(*update.Message)
 		if !ok {
 			return nil
 		}
@@ -115,13 +113,7 @@ func (t *TelegramService) OnUpdate(ctx context.Context, update tbot.Update) erro
 }
 
 func (t *TelegramService) setCommands() error {
-	var cmds []tbot.BotCommand
-	for _, command := range t.commands {
-		cmd := ToAPITelegramCommand(command)
-		cmd.Command = strings.TrimPrefix(strings.Split(cmd.Command, " ")[0], "/")
-		cmds = append(cmds, cmd)
-	}
-	cfg := tbot.NewSetMyCommands(cmds...)
+	cfg := tbot.NewSetMyCommands(t.commands.ApiCommands()...)
 	_, err := t.api.Request(cfg)
 	return err
 }

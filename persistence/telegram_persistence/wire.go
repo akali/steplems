@@ -1,3 +1,5 @@
 package telegram_persistence
 
-var TelegramPersistenceSet = NewUserRepository
+import "github.com/google/wire"
+
+var TelegramPersistenceSet = wire.NewSet(NewUserRepository, NewMessageRepository)

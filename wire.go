@@ -22,6 +22,7 @@ type WireApplication struct {
 	telegramService *telegram.TelegramService
 	sUserRepo       *spotify_persistence.UserRepository
 	tUserRepo       *telegram2.UserRepository
+	messageRepo     *telegram2.MessageRepository
 	spotifyService  *spotify2.SpotifyService
 	hostname        types.Hostname
 	authService     *spotify2.SpotifyAuthService
@@ -35,13 +36,14 @@ func NewWireApplication() (WireApplication, error) {
 	return WireApplication{}, nil
 }
 
-func provideWireApplication(spotifyService *spotify2.SpotifyService, authService *spotify2.SpotifyAuthService, telegramService *telegram.TelegramService, hostname types.Hostname, sUserRepo *spotify_persistence.UserRepository, tUserRepo *telegram2.UserRepository) WireApplication {
+func provideWireApplication(spotifyService *spotify2.SpotifyService, authService *spotify2.SpotifyAuthService, telegramService *telegram.TelegramService, hostname types.Hostname, sUserRepo *spotify_persistence.UserRepository, tUserRepo *telegram2.UserRepository, messageRepository *telegram2.MessageRepository) WireApplication {
 	return WireApplication{
 		spotifyService:  spotifyService,
 		authService:     authService,
 		telegramService: telegramService,
 		sUserRepo:       sUserRepo,
 		tUserRepo:       tUserRepo,
+		messageRepo:     messageRepository,
 		hostname:        hostname}
 }
 
@@ -64,6 +66,7 @@ func (w WireApplication) migrate() error {
 	migratables := []types.MigrationRunner{
 		w.sUserRepo,
 		w.tUserRepo,
+		w.messageRepo,
 	}
 
 	for _, m := range migratables {
