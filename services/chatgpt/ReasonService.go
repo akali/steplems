@@ -34,7 +34,7 @@ const (
 
 var Model = types.ModelStorage{Model: "meta-llama/Meta-Llama-3.1-405B-Instruct", Backend: "deepinfra", ImGenModel: "stablediffusion"}
 
-//var Model = types.ModelStorage{Model: openai.GPT3Dot5Turbo, Backend: "openai", ImGenModel: "stablediffusion"}
+//var Model = types.ModelStorage{Model: "gpt-4o-mini", Backend: "openai", ImGenModel: "stablediffusion"}
 
 type ReasonService struct {
 	service *ChatGPTService
@@ -72,31 +72,31 @@ func removeHeaders(response string) string {
 		return response
 	}
 	response = response[begin:]
-	response = strings.ReplaceAll(response, "\n", "")
-	response = strings.ReplaceAll(response, "`", "")
 
-	return "[" + response + "]"
+	return response
 }
 
-func (r *ReasonService) makeCall(ctx context.Context, thread []openai.ChatCompletionMessage) ([]StepData, error) {
-	return retry.DoWithData(func() ([]StepData, error) {
+func (r *ReasonService) makeCall(ctx context.Context, thread []openai.ChatCompletionMessage) (StepData, error) {
+	return retry.DoWithData(func() (StepData, error) {
 		answer, err := r.service.Answer(ctx, thread, Model, WithMaxTokenSize(MaxTokenSize))
 		if err != nil {
-			return []StepData{}, err
+			return StepData{}, err
 		}
-		answer = removeHeaders(answer)
-		var stepData []StepData
+		answer, err = r.parseReasonJson(ctx, Model, answer)
+		if err != nil {
+			return StepData{}, err
+		}
+		var stepData StepData
 		decoder := json.NewDecoder(strings.NewReader(answer))
 		if err := decoder.Decode(&stepData); err != nil {
 			return stepData, fmt.Errorf("failed to parse json for %q: %w", answer, err)
-		}
-		if len(stepData) == 0 {
-			return []StepData{}, fmt.Errorf("got empty step data")
 		}
 		log.Debug().Interface("step_data", stepData).Msg("got step data")
 		return stepData, nil
 	}, retry.Attempts(3))
 }
+
+const TimeLimit = time.Minute * 5
 
 func (r *ReasonService) reason(ctx context.Context, prompt string, resultChan chan<- StepResult) {
 	defer close(resultChan)
@@ -114,27 +114,28 @@ func (r *ReasonService) reason(ctx context.Context, prompt string, resultChan ch
 			Content: AssistantPrompt,
 		},
 	}
+	allStartTime := time.Now()
 
 	for steps := 0; steps <= MaxStepCount; steps++ {
+		if time.Now().Sub(allStartTime) > TimeLimit {
+			break
+		}
 		startTime := time.Now()
-		stepDatas, err := r.makeCall(ctx, thread)
+		stepData, err := r.makeCall(ctx, thread)
 		endTime := time.Now()
 		diff := endTime.Sub(startTime)
-		for _, stepData := range stepDatas {
-			stepResult := StepResult{
-				Data:     stepData,
-				Err:      err,
-				Duration: diff,
-			}
-			resultChan <- stepResult
-			log.Debug().Interface("step_result", stepResult).Send()
-			thread = append(thread, openai.ChatCompletionMessage{
-				Role:    openai.ChatMessageRoleAssistant,
-				Content: stepData.json(),
-			})
-			if !stepData.HasNext() {
-				break
-			}
+		stepResult := StepResult{
+			Data:     stepData,
+			Err:      err,
+			Duration: diff,
+		}
+		resultChan <- stepResult
+		thread = append(thread, openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleAssistant,
+			Content: stepData.json(),
+		})
+		if !stepData.HasNext() {
+			break
 		}
 	}
 	thread = append(thread, openai.ChatCompletionMessage{
@@ -148,11 +149,7 @@ func (r *ReasonService) reason(ctx context.Context, prompt string, resultChan ch
 	stepResult := StepResult{
 		Err:      err,
 		Duration: diff,
-	}
-	if len(stepData) > 0 {
-		stepResult.Data = stepData[0]
-	} else {
-		stepResult.Err = fmt.Errorf("got no response")
+		Data:     stepData,
 	}
 	resultChan <- stepResult
 }

@@ -23,17 +23,16 @@ func (r ReasonCommand) Run(cc *lib.ChatContext) error {
 	startTime := time.Now()
 	respondText = "__Thinking...__"
 	msg = cc.EditMessage(msg, respondText)
-	log.Debug().Interface("msg", msg).Send()
-	log.Debug().Msg("About to call Reason method")
+
 	updatesChan := r.reasoner.Reason(cc.Ctx, cc.Text())
-	log.Debug().Msg("Reason method called, waiting for updates")
+
 	stopOnNext := false
 	for {
 		result, more := <-updatesChan
 		if !more {
 			break
 		}
-		log.Debug().Interface("result", result).Msg("Got result in reason command")
+
 		if err := result.Err; err != nil {
 			log.Err(err).Send()
 			continue

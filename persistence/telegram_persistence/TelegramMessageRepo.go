@@ -2,7 +2,6 @@ package telegram_persistence
 
 import (
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
 
@@ -36,13 +35,10 @@ func (p *MessageRepository) MessageThread(message Message) ([]Message, error) {
 
 	result = append(result, message)
 
-	log.Debug().Interface("messages", result).Msg("thread")
-
 	return result, nil
 }
 
 func (p *MessageRepository) Create(message Message) error {
-	log.Logger.Info().Interface("message", message).Msg("trying to save Message")
 	return p.DB.Create(&message).Error
 }
 

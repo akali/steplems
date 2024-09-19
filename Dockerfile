@@ -1,26 +1,22 @@
-FROM alpine:3 as certs
-RUN apk --no-cache add ca-certificates
+FROM golang:1.21-alpine AS builder
 
-FROM golang:1.21-alpine as builder
+RUN apk update && apk add --no-cache git ca-certificates
 
-RUN apk update && apk add --no-cache git
+WORKDIR /app
 
-WORKDIR $GOPATH/src/github.com/akali/steplems
-
-COPY go.mod .
-COPY go.sum .
-
-ENV CGO_ENABLED=0
-
-RUN go get -v all
+COPY go.mod go.sum ./
+RUN go mod download
 
 COPY . .
 
-RUN go build -o /bin/steplems
+RUN CGO_ENABLED=0 go build -o /bin/steplems
 
-FROM alpine
+FROM alpine:3
+
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /bin/steplems /bin/
+COPY static /bin/static
 
 WORKDIR /bin
-COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=builder /bin/steplems /bin/steplems
+
 CMD ["/bin/steplems"]

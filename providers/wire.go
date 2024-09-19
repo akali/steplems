@@ -13,4 +13,4 @@ var ProvidersSet = wire.NewSet(
 	OpenAIProviders,
 	GoInstaProviders,
 	DeepInfraProviders,
-)
+	LangChainWireSet)

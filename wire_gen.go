@@ -98,7 +98,11 @@ func NewWireApplication() (WireApplication, error) {
 		return WireApplication{}, err
 	}
 	deepInfraOpenAIClient := providers.ProvideDeepInfraOpenAIClient(deepInfraToken)
-	chatGPTService := chatgpt.New(openaiClient, deepInfraOpenAIClient, logger)
+	deepInfraLangChainOpenAIClient, err := providers.ProvideLangChainDeepInfraLLM(deepInfraToken)
+	if err != nil {
+		return WireApplication{}, err
+	}
+	chatGPTService := chatgpt.New(openaiClient, deepInfraOpenAIClient, deepInfraLangChainOpenAIClient, logger)
 	messageRepository := telegram_persistence.NewMessageRepository(db)
 	chatGPTCommand := commands.NewChatGPTCommand(chatGPTService, messageRepository, telegram_persistenceUserRepository)
 	setModelCommand := commands.NewSetModelCommand()

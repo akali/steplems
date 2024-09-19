@@ -3,7 +3,6 @@ package telegram
 import (
 	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/google/wire"
-	"github.com/rs/zerolog/log"
 	"steplems-bot/lib"
 	"steplems-bot/services/telegram/commands"
 	"strings"
@@ -29,7 +28,6 @@ func (m CommandMap) Get(message tbot.Message) (TelegramCommand, bool) {
 
 func (m CommandMap) Match(message tbot.Message) bool {
 	match := m.chatGPTCommand.Match(message)
-	log.Debug().Bool("match", match).Msg("")
 	return match
 }
 

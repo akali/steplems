@@ -1,0 +1,27 @@
+{
+      "title": "Final Answer",
+  "content": "The final answer is a Python code that calculates the probability of each player finishing last in a game of Speed Bingo.",
+  "code": "
+import sys
+def calculate_probability(n, k, sheets):
+    count_dict = {}
+    for sheet in sheets:
+        for num in sheet:
+            if num in count_dict:
+                count_dict[num] += 1
+            else:
+                count_dict[num] = 1
+    probabilities = []
+    for sheet in sheets:
+        total_count = sum(count_dict[num] for num in sheet)
+        single_count = sum(1 for num in sheet if count_dict[num] == 1)
+        probability = 1 - single_count / total_count
+        probabilities.append(probability)
+    return probabilities
+n, k = map(int, sys.stdin.readline().split())
+sheets = [list(map(int, sys.stdin.readline().split())) for _ in range(n)]
+probabilities = calculate_probability(n, k, sheets)
+for probability in probabilities:
+    print(f'{probability:.9f}')",
+  "next_action": "final_answer"
+}
