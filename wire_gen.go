@@ -98,7 +98,11 @@ func NewWireApplication() (WireApplication, error) {
 		return WireApplication{}, err
 	}
 	deepInfraOpenAIClient := providers.ProvideDeepInfraOpenAIClient(deepInfraToken)
-	chatGPTService := chatgpt.New(openaiClient, deepInfraOpenAIClient, logger)
+	deepInfraLangChainOpenAIClient, err := providers.ProvideLangChainDeepInfraLLM(deepInfraToken)
+	if err != nil {
+		return WireApplication{}, err
+	}
+	chatGPTService := chatgpt.New(openaiClient, deepInfraOpenAIClient, deepInfraLangChainOpenAIClient, logger)
 	messageRepository := telegram_persistence.NewMessageRepository(db)
 	chatGPTCommand := commands.NewChatGPTCommand(chatGPTService, messageRepository, telegram_persistenceUserRepository)
 	setModelCommand := commands.NewSetModelCommand()
@@ -106,7 +110,9 @@ func NewWireApplication() (WireApplication, error) {
 	deepInfraService := deepinfra2.NewStableDiffusionService(deepinfraClient, logger)
 	imGenCommand := commands.NewImGenCommand(deepInfraService)
 	transcribeCommand := commands.NewTranscribeCommand(deepInfraService)
-	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand, chatGPTCommand, setModelCommand, imGenCommand, transcribeCommand)
+	reasonService := chatgpt.NewReasonService(chatGPTService)
+	reasonCommand := commands.NewReasonCommand(reasonService)
+	commandMap := telegram.NewCommandMap(authorizeSpotifyCommand, helpCommand, nowPlayingCommand, chatGPTCommand, setModelCommand, imGenCommand, transcribeCommand, reasonCommand)
 	telegramService := telegram.NewTelegramService(botAPI, youtubeService, instagramService, logger, commandMap)
 	wireApplication := provideWireApplication(spotifyService, spotifyAuthService, telegramService, hostname, userRepository, telegram_persistenceUserRepository, messageRepository)
 	return wireApplication, nil

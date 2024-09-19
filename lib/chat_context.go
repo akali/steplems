@@ -21,6 +21,10 @@ type ChatContext struct {
 	Err *multierror.Error
 }
 
+func (cc *ChatContext) Error() error {
+	return cc.Err.ErrorOrNil()
+}
+
 func NewChatContext(ctx context.Context, sender types.Sender, update tbot.Update, bot *tbot.BotAPI) *ChatContext {
 	return &ChatContext{
 		Ctx:    ctx,
@@ -45,6 +49,12 @@ func (c *ChatContext) ReplyText(message string) tbot.Message {
 	msg := tbot.NewMessage(c.Update.FromChat().ID, message)
 	msg.ReplyToMessageID = c.Update.Message.MessageID
 	return c.send(msg)
+}
+
+func (c *ChatContext) EditMessage(message tbot.Message, newText string) tbot.Message {
+	edit := tbot.NewEditMessageText(message.Chat.ID, message.MessageID, newText)
+	edit.ParseMode = tbot.ModeMarkdown
+	return c.send(edit)
 }
 
 func (c *ChatContext) RespondImageURL(url string) {

@@ -1,0 +1,46 @@
+Here is the Python code that calculates the probabilities of each player finishing last in the game of Speed Bingo:
+```python
+import random
+
+def simulate_game(n, k, sheets):
+    # Simulate the game
+    numbers = []
+    for sheet in sheets:
+        numbers.extend(sheet)
+    random.shuffle(numbers)
+
+    # Keep track of which player finishes last
+    last_player = -1
+    player_counts = [k] * n
+
+    for number in numbers:
+        for i, sheet in enumerate(sheets):
+            if number in sheet and player_counts[i] > 0:
+                player_counts[i] -= 1
+                if player_counts[i] == 0:
+                    last_player = i
+
+    return last_player
+
+def calculate_probabilities(n, k, sheets):
+    # Simulate the game many times
+    num_simulations = 1000000
+    last_player_counts = [0] * n
+
+    for _ in range(num_simulations):
+        last_player = simulate_game(n, k, sheets)
+        last_player_counts[last_player] += 1
+
+    # Calculate the probabilities
+    probabilities = [count / num_simulations for count in last_player_counts]
+    return probabilities
+
+# Read the input
+n, k = map(int, input().split())
+sheets = []
+for _ in range(n):
+    sheet = list(map(int, input().split()))
+    sheets.append(sheet)
+
+# Calculate the probabilities
+probabilities = calculate_probabilities

@@ -1,0 +1,5 @@
+{
+    "title": "Calculating the Complementary Probability",
+    "content": "The complementary probability of a player finishing last is the probability of the player finishing first, second, third, and so on, until all players but one have finished. We can calculate this probability by considering the number of ways the player can finish in each position and dividing it by the total number of possible outcomes.",
+    "next_action": "continue"
+}
