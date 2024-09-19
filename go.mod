@@ -7,6 +7,7 @@ require (
 	github.com/avast/retry-go/v4 v4.5.0
 	github.com/glebarez/sqlite v1.11.0
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
+	github.com/google/go-cmp v0.5.5
 	github.com/google/uuid v1.3.1
 	github.com/google/wire v0.5.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
@@ -16,6 +17,7 @@ require (
 	github.com/loganrk/go-heap-cache v1.0.1
 	github.com/rs/zerolog v1.33.0
 	github.com/sashabaranov/go-openai v1.16.0
+	github.com/vincent-petithory/dataurl v1.0.0
 	github.com/zmb3/spotify/v2 v2.4.0
 	golang.org/x/oauth2 v0.0.0-20210810183815-faf39c7919d5
 	gopkg.in/yaml.v2 v2.4.0
@@ -48,7 +50,6 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/vincent-petithory/dataurl v1.0.0 // indirect
 	golang.org/x/net v0.22.0 // indirect
 	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/text v0.14.0 // indirect

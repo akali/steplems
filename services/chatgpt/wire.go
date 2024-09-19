@@ -2,4 +2,4 @@ package chatgpt
 
 import "github.com/google/wire"
 
-var ChatGPTServiceProviderSet = wire.NewSet(New)
+var ChatGPTServiceProviderSet = wire.NewSet(New, NewReasonService)

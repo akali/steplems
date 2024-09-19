@@ -9,4 +9,5 @@ var CommandsProvider = wire.NewSet(
 	NewChatGPTCommand,
 	NewSetModelCommand,
 	NewImGenCommand,
-	NewTranscribeCommand)
+	NewTranscribeCommand,
+	NewReasonCommand)

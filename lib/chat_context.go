@@ -6,6 +6,7 @@ import (
 	"fmt"
 	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hashicorp/go-multierror"
+	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
 	"steplems-bot/types"
@@ -19,6 +20,10 @@ type ChatContext struct {
 
 	Ctx context.Context
 	Err *multierror.Error
+}
+
+func (cc *ChatContext) Error() error {
+	return cc.Err.ErrorOrNil()
 }
 
 func NewChatContext(ctx context.Context, sender types.Sender, update tbot.Update, bot *tbot.BotAPI) *ChatContext {
@@ -43,8 +48,16 @@ func (c *ChatContext) RespondText(message string) tbot.Message {
 
 func (c *ChatContext) ReplyText(message string) tbot.Message {
 	msg := tbot.NewMessage(c.Update.FromChat().ID, message)
+	msg.ParseMode = tbot.ModeMarkdown
 	msg.ReplyToMessageID = c.Update.Message.MessageID
 	return c.send(msg)
+}
+
+func (c *ChatContext) EditMessage(message tbot.Message, newText string) tbot.Message {
+	log.Debug().Str("old_text", message.Text).Str("new_text", newText).Int64("chatID", message.Chat.ID).Int("messageID", message.MessageID).Send()
+	edit := tbot.NewEditMessageText(message.Chat.ID, message.MessageID, newText)
+	edit.ParseMode = tbot.ModeMarkdown
+	return c.send(edit)
 }
 
 func (c *ChatContext) RespondImageURL(url string) {
